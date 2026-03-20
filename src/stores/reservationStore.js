@@ -415,7 +415,7 @@ export const useReservationStore = create((set, get) => ({
           "amountReceived",
           payment.amountReceived.toString(),
         );
-        receiptFormData.append("status", payment.status || "pending");
+        receiptFormData.append("status", "pending");
         receiptFormData.append("notes", reservationData.notes || "");
         receiptFormData.append("isAdminInitiated", "false");
 

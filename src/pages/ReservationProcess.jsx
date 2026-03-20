@@ -183,7 +183,7 @@ export default function GuestReservation() {
   const { currentGuest, isAuthenticated, initialize } = useGuestStore();
   const [step, setStep] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("all");
-
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   // Step 1 data
   const [reservationFormData, setReservationFormData] = useState({
     checkIn: getDefaultCheckIn(),
@@ -205,7 +205,84 @@ export default function GuestReservation() {
     amountReceived: 0,
     status: "pending", // Add status field, default to "pending"
   });
+  const RefundPolicyModal = ({ isOpen, onClose, onConfirm }) => {
+    if (!isOpen) return null;
 
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+            <h3 className="text-xl font-bold text-white">Important Policy</h3>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="text-2xl">⚠️</div>
+              <p className="text-gray-700 font-medium">
+                Please read and understand our refund and cancellation policy
+                before confirming your reservation.
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Reschedule:</span> Must be
+                  made 7 days before the date of reservation
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">No Show:</span> Initial
+                  Deposit is no longer refundable
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Initial Deposit:</span>{" "}
+                  Non-refundable unless accidents and acts of God occur
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">Full Payment:</span> Once
+                  settled, payments are non-refundable
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-xs text-yellow-800 text-center">
+                By proceeding with this reservation, you acknowledge and agree
+                to the terms and conditions stated above.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={onConfirm}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all duration-200"
+              >
+                I Agree & Confirm
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
   // Receipt data
   const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
   const [receiptImagePreview, setReceiptImagePreview] = useState("");
@@ -640,6 +717,10 @@ export default function GuestReservation() {
 
   const submitReservation = async () => {
     if (!validateStep3()) return;
+
+    // Close the modal and proceed with submission
+    setShowConfirmModal(false);
+
     try {
       const payload = {
         guest: {
@@ -689,7 +770,11 @@ export default function GuestReservation() {
       );
     }
   };
-
+  const handleShowConfirmModal = () => {
+    if (validateStep3()) {
+      setShowConfirmModal(true);
+    }
+  };
   return (
     <>
       <Helmet>
@@ -1346,7 +1431,7 @@ export default function GuestReservation() {
                 </div>
 
                 {/* Status Selection - Not confirmed by default */}
-                <div className="mt-4">
+                {/* <div className="mt-4">
                   <label className="text-sm font-medium text-gray-700">
                     Payment Status *
                   </label>
@@ -1366,7 +1451,7 @@ export default function GuestReservation() {
                     Status will be "Pending" by default. Admin will confirm
                     after verification.
                   </p>
-                </div>
+                </div> */}
 
                 {payment.discountId && (
                   <div className="mt-6">
@@ -1844,7 +1929,7 @@ export default function GuestReservation() {
           {step === 3 && (
             <button
               type="button"
-              onClick={submitReservation}
+              onClick={handleShowConfirmModal}
               disabled={loading}
               className={`h-11 px-5 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2 transition-all duration-200 ${loading ? "bg-[#00af00]/50 cursor-not-allowed" : "bg-[#00af00] hover:bg-[#009500] hover:shadow-md"}`}
             >
@@ -1865,6 +1950,11 @@ export default function GuestReservation() {
           </div>
         )}
       </div>
+      <RefundPolicyModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={submitReservation}
+      />
     </>
   );
 }
