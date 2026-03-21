@@ -59,7 +59,7 @@ export default function GuestHeader() {
       `}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
+        <div className="flex justify-between items-center md:grid md:grid-cols-3 py-4">
           {/* Logo and Brand */}
           <Link to="/" className="flex items-center group">
             <Logo
@@ -71,7 +71,7 @@ export default function GuestHeader() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex justify-center items-center space-x-8">
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -91,7 +91,7 @@ export default function GuestHeader() {
           </nav>
 
           {/* Auth Buttons / User Menu */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex justify-end items-center space-x-4">
             {loading ? (
               <div className="h-10 w-24 bg-gray-200 animate-pulse rounded-lg"></div>
             ) : isAuthenticated ? (
