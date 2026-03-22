@@ -633,10 +633,25 @@ export default function GuestReservation() {
   };
 
   const addAmenityToRoom = (roomIndex) => {
+    // Check if the selected item is a cottage
+    const selectedItem = roomReservations[roomIndex];
+    const item = availableRooms.find((r) => r._id === selectedItem.roomId);
+
+    console.log("Adding amenity to:", item?.category);
+
+    // Explicitly check if it's a cottage
+    if (item?.category === "cottage") {
+      toast.error(
+        "Amenities are not available for cottages. They can only be added to rooms.",
+      );
+      return;
+    }
+
     if (!amenities?.length) {
       toast.error("No amenities available.");
       return;
     }
+
     setRoomReservations((prev) => {
       const updated = [...prev];
       updated[roomIndex].amenities.push({
@@ -1133,21 +1148,38 @@ export default function GuestReservation() {
                         )}
                       </div>
                     </div>
-
+                    {/* Selected Items with Amenities */}
                     {roomReservations.length > 0 && (
                       <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-gray-900">
-                          Selected Items & Amenities
+                          Selected Items
                         </h3>
                         {roomReservations.map((roomRes, roomIndex) => {
+                          // Find the actual room/cottage data to get its category
                           const item = availableRooms.find(
                             (r) => r._id === roomRes.roomId,
                           );
                           const isCottage = item?.category === "cottage";
+                          const isRoom = item?.category === "room";
+
+                          // Log for debugging
+                          console.log(
+                            "Item category:",
+                            item?.category,
+                            "isCottage:",
+                            isCottage,
+                            "isRoom:",
+                            isRoom,
+                          );
+
                           return (
                             <div
                               key={roomRes.roomId}
-                              className="rounded-lg border border-gray-200 bg-white p-4"
+                              className="
+            rounded-xl border border-gray-200 
+            bg-white
+            p-4
+          "
                             >
                               <div className="flex items-center justify-between mb-3">
                                 <div>
@@ -1157,7 +1189,11 @@ export default function GuestReservation() {
                                       {roomRes.roomNumber}
                                     </div>
                                     <span
-                                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${isCottage ? "bg-[#00af00]/10 text-[#00af00]" : "bg-[#0c2bfc]/10 text-[#0c2bfc]"}`}
+                                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                        isCottage
+                                          ? "bg-[#00af00]/10 text-[#00af00]"
+                                          : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
+                                      }`}
                                     >
                                       {isCottage ? "Cottage" : "Room"}
                                     </span>
@@ -1169,101 +1205,179 @@ export default function GuestReservation() {
                                 <button
                                   type="button"
                                   onClick={() => removeRoom(roomRes.roomId)}
-                                  className="h-9 w-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 grid place-items-center text-[#0c2bfc] transition-all duration-200"
+                                  className="
+                h-9 w-9 rounded-xl border border-gray-200 
+                bg-white
+                hover:bg-gray-50
+                grid place-items-center text-[#0c2bfc]
+                transition-all duration-200
+                hover:shadow-md hover:-translate-y-0.5
+                active:translate-y-0
+              "
+                                  title="Remove item"
                                 >
-                                  <FiTrash2 size={14} />
+                                  <FiTrash2 />
                                 </button>
                               </div>
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="text-xs font-medium text-gray-700">
-                                    Amenities
+
+                              {/* Amenities Section - ONLY show for rooms, NOT for cottages */}
+                              {!isCottage && isRoom && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-xs font-medium text-gray-700">
+                                      Amenities
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        addAmenityToRoom(roomIndex)
+                                      }
+                                      className="
+                    h-8 px-3 rounded-xl 
+                    bg-[#0c2bfc] 
+                    hover:bg-[#0a24d6]
+                    text-white text-xs font-medium inline-flex items-center gap-1
+                    transition-all duration-200
+                    hover:shadow-md hover:-translate-y-0.5
+                    active:translate-y-0
+                  "
+                                    >
+                                      <FiPlus size={12} /> Add Amenity
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => addAmenityToRoom(roomIndex)}
-                                    className="h-8 px-3 rounded-lg bg-[#0c2bfc] hover:bg-[#0a24d6] text-white text-xs font-medium inline-flex items-center gap-1 transition-all duration-200"
-                                  >
-                                    <FiPlus size={12} /> Add Amenity
-                                  </button>
-                                </div>
-                                {roomRes.amenities.map(
-                                  (amenity, amenityIndex) => {
-                                    const amenityData = amenities.find(
-                                      (a) => a._id === amenity.amenityId,
-                                    );
-                                    return (
-                                      <div
-                                        key={`${amenity.amenityId}-${amenityIndex}`}
-                                        className="grid gap-3 sm:grid-cols-12 items-center rounded-lg border border-gray-200 bg-white p-3"
-                                      >
-                                        <div className="sm:col-span-7">
-                                          <label className="text-xs text-gray-500">
-                                            Amenity
-                                          </label>
-                                          <select
-                                            value={amenity.amenityId}
-                                            onChange={(e) =>
-                                              updateAmenityInRoom(
-                                                roomIndex,
-                                                amenityIndex,
-                                                { amenityId: e.target.value },
-                                              )
-                                            }
-                                            className="mt-1 w-full h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700"
-                                          >
-                                            {amenities.map((a) => (
-                                              <option key={a._id} value={a._id}>
-                                                {a.name} ({formatMoney(a.rate)})
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <div className="sm:col-span-3">
-                                          <label className="text-xs text-gray-500">
-                                            Quantity
-                                          </label>
-                                          <div className="mt-1">
-                                            <Stepper
-                                              value={amenity.quantity}
-                                              onChange={(newQuantity) =>
+
+                                  {roomRes.amenities.map(
+                                    (amenity, amenityIndex) => {
+                                      const amenityData = amenities.find(
+                                        (a) => a._id === amenity.amenityId,
+                                      );
+
+                                      return (
+                                        <div
+                                          key={`${amenity.amenityId}-${amenityIndex}`}
+                                          className="
+                      grid gap-3 sm:grid-cols-12 items-center 
+                      rounded-xl border border-gray-200 
+                      bg-white
+                      p-3
+                    "
+                                        >
+                                          <div className="sm:col-span-7">
+                                            <label className="text-xs text-gray-500">
+                                              Amenity
+                                            </label>
+                                            <select
+                                              value={amenity.amenityId}
+                                              onChange={(e) =>
                                                 updateAmenityInRoom(
                                                   roomIndex,
                                                   amenityIndex,
-                                                  { quantity: newQuantity },
+                                                  {
+                                                    amenityId: e.target.value,
+                                                  },
                                                 )
                                               }
-                                              min={1}
-                                              max={99}
-                                              step={1}
-                                              size="small"
-                                            />
+                                              className="
+                          mt-1 w-full h-10 rounded-xl border border-gray-200 
+                          bg-white px-3 text-sm 
+                          outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                          text-gray-700
+                        "
+                                            >
+                                              {amenities.map((a) => (
+                                                <option
+                                                  key={a._id}
+                                                  value={a._id}
+                                                >
+                                                  {a.name} (
+                                                  {formatMoney(a.rate)})
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+
+                                          <div className="sm:col-span-3">
+                                            <label className="text-xs text-gray-500">
+                                              Quantity
+                                            </label>
+                                            <div className="mt-1">
+                                              <Stepper
+                                                value={amenity.quantity}
+                                                onChange={(newQuantity) =>
+                                                  updateAmenityInRoom(
+                                                    roomIndex,
+                                                    amenityIndex,
+                                                    {
+                                                      quantity: newQuantity,
+                                                    },
+                                                  )
+                                                }
+                                                min={1}
+                                                max={99}
+                                                step={1}
+                                                size="small"
+                                              />
+                                            </div>
+                                          </div>
+
+                                          <div className="sm:col-span-2 flex justify-end">
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                removeAmenityFromRoom(
+                                                  roomIndex,
+                                                  amenityIndex,
+                                                )
+                                              }
+                                              className="
+                          h-10 w-10 rounded-xl border border-gray-200 
+                          bg-white
+                          hover:bg-gray-50
+                          grid place-items-center text-[#0c2bfc]
+                          transition-all duration-200
+                          hover:shadow-md hover:-translate-y-0.5
+                          active:translate-y-0
+                        "
+                                              title="Remove amenity"
+                                            >
+                                              <FiTrash2 />
+                                            </button>
                                           </div>
                                         </div>
-                                        <div className="sm:col-span-2 flex justify-end">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              removeAmenityFromRoom(
-                                                roomIndex,
-                                                amenityIndex,
-                                              )
-                                            }
-                                            className="h-9 w-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 grid place-items-center text-[#0c2bfc] transition-all duration-200"
-                                          >
-                                            <FiTrash2 size={14} />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  },
-                                )}
-                                {roomRes.amenities.length === 0 && (
-                                  <div className="text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-lg bg-gray-50">
-                                    No amenities added to this item.
-                                  </div>
-                                )}
-                              </div>
+                                      );
+                                    },
+                                  )}
+
+                                  {roomRes.amenities.length === 0 && (
+                                    <div
+                                      className="
+                    text-xs text-gray-500 italic text-center py-3
+                    border border-dashed border-gray-200 rounded-xl
+                    bg-gray-50
+                  "
+                                    >
+                                      No amenities added to this room.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* For cottages, show a message that amenities are not available */}
+                              {isCottage && (
+                                <div
+                                  className="
+                mt-2 text-xs text-gray-500 italic text-center py-3
+                border border-dashed border-gray-200 rounded-xl
+                bg-gray-50
+              "
+                                >
+                                  <span className="text-[#00af00] font-medium">
+                                    ℹ️ Note:
+                                  </span>{" "}
+                                  Amenities are only available for rooms, not
+                                  for cottages.
+                                </div>
+                              )}
                             </div>
                           );
                         })}

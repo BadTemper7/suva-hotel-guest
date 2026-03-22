@@ -6,7 +6,6 @@ import {
   FiCalendar,
   FiUser,
   FiHome,
-  FiDollarSign,
   FiCheckCircle,
   FiXCircle,
   FiClock,
@@ -23,7 +22,15 @@ import { useReservationStore } from "../stores/reservationStore";
 import { useGuestStore } from "../stores/guestStore";
 import Loader from "../components/ui/Loader";
 import toast from "react-hot-toast";
-
+const PesoIcon = ({ className = "w-5 h-5", ...props }) => (
+  <span
+    className={`inline-flex items-center justify-center font-bold ${className}`}
+    style={{ fontFamily: "system-ui" }}
+    {...props}
+  >
+    ₱
+  </span>
+);
 // Money formatter
 const formatMoney = (n) =>
   new Intl.NumberFormat("en-PH", {
@@ -91,7 +98,7 @@ function PaymentStatusBadge({ paymentStatus }) {
     <span
       className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold border ${styles[paymentStatus] || styles.unpaid}`}
     >
-      <FiDollarSign className="mr-1.5" size={12} />
+      <PesoIcon className="mr-1.5" size={12} />
       {labels[paymentStatus] || paymentStatus}
     </span>
   );
@@ -661,7 +668,7 @@ export default function Bookings() {
                       {booking.billing && (
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <FiDollarSign /> Payment Summary
+                            <PesoIcon /> Payment Summary
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-gray-50 rounded-xl p-4">
