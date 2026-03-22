@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import {
   setAuthed,
-  setToken as setAuthToken,
+  setToken,
   setUser,
   getUser,
   getToken,
@@ -47,8 +47,9 @@ export const useGuestStore = create((set, get) => ({
   initialize: () => {
     const storedUser = getUser();
     const authed = isAuthed();
+    const storedToken = getToken();
 
-    if (storedUser && authed) {
+    if (storedUser && authed && storedToken) {
       set({
         currentGuest: storedUser,
         isAuthenticated: true,
@@ -60,14 +61,14 @@ export const useGuestStore = create((set, get) => ({
     }
   },
 
-  // Check authentication status (alias for initialize)
+  // Check authentication status
   checkAuth: async () => {
     const { initialize } = get();
     initialize();
     return get().isAuthenticated;
   },
 
-  // Get current guest (for components)
+  // Get current guest
   getCurrentGuest: () => {
     const { currentGuest, isAuthenticated } = get();
     return isAuthenticated ? currentGuest : null;
@@ -89,16 +90,20 @@ export const useGuestStore = create((set, get) => ({
       if (data.success) {
         const guest = data.guest;
 
-        // Store auth data
-        setAuthed(true);
-        setUser(guest);
+        // After registration, automatically log in to get token
+        const loginResult = await get().loginGuest(
+          guestData.email,
+          guestData.password,
+        );
+
+        if (loginResult.success) {
+          return loginResult;
+        }
 
         set({
           currentGuest: guest,
-          isAuthenticated: true,
+          isAuthenticated: false,
           authLoading: false,
-          authError: null,
-          guestExists: true,
         });
 
         return { success: true, guest, message: data.message };
@@ -106,7 +111,6 @@ export const useGuestStore = create((set, get) => ({
         set({
           authLoading: false,
           authError: data.message,
-          needsRegistration: data.message?.includes("register") || false,
         });
         return { success: false, error: data.message };
       }
@@ -129,9 +133,11 @@ export const useGuestStore = create((set, get) => ({
 
       if (data.success) {
         const guest = data.guest;
+        const token = data.token;
 
-        // Store auth data
+        // Store auth data using your auth.js functions
         setAuthed(true);
+        setToken(token);
         setUser(guest);
 
         set({
@@ -142,7 +148,7 @@ export const useGuestStore = create((set, get) => ({
           guestExists: true,
         });
 
-        return { success: true, guest, message: data.message };
+        return { success: true, guest, token, message: data.message };
       } else {
         set({
           authLoading: false,
@@ -161,7 +167,7 @@ export const useGuestStore = create((set, get) => ({
     }
   },
 
-  // Change password (no current password required)
+  // Change password
   changePassword: async (newPassword, confirmPassword) => {
     set({ loading: true, error: null });
     try {
@@ -178,7 +184,6 @@ export const useGuestStore = create((set, get) => ({
         throw new Error("Password must be at least 6 characters");
       }
 
-      // Check for spaces in password
       if (/\s/.test(newPassword)) {
         throw new Error("Password cannot contain spaces");
       }
@@ -202,10 +207,10 @@ export const useGuestStore = create((set, get) => ({
       const updatedGuest = data.guest || currentGuest;
       setUser(updatedGuest);
 
-      set((state) => ({
+      set({
         currentGuest: updatedGuest,
         loading: false,
-      }));
+      });
 
       return { success: true, message: data.message };
     } catch (err) {
@@ -216,7 +221,7 @@ export const useGuestStore = create((set, get) => ({
 
   // Logout guest
   logoutGuest: () => {
-    authLogout();
+    authLogout(); // This clears all auth data
     set({
       currentGuest: null,
       isAuthenticated: false,
@@ -244,12 +249,12 @@ export const useGuestStore = create((set, get) => ({
         setAuthed(true);
         setUser(guest);
 
-        set((state) => ({
-          guests: state.guests.map((g) => (g._id === guestId ? guest : g)),
+        set({
+          guests: get().guests.map((g) => (g._id === guestId ? guest : g)),
           currentGuest: guest,
           isAuthenticated: true,
           loading: false,
-        }));
+        });
 
         return { success: true, guest, message: data.message };
       } else {
@@ -303,7 +308,6 @@ export const useGuestStore = create((set, get) => ({
       throw err;
     }
   },
-
   // ==================== GUEST MANAGEMENT METHODS ====================
 
   // Find guest by email
