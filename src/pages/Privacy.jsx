@@ -222,7 +222,7 @@ export default function Privacy() {
                     href="tel:+63281234567"
                     className="text-blue-600 hover:underline"
                   >
-                    (02) 8123 4567
+                    +63 976023356
                   </a>
                 </p>
               </div>

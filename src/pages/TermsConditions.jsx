@@ -103,9 +103,9 @@ export default function TermsConditions() {
               For questions or concerns regarding these terms, please contact us
               at:
               <br />
-              Email: info@suvasplace.com
+              Email: suvasplaceinc@gmail.com
               <br />
-              Phone: (02) 8123 4567
+              Phone: +63 976023356
               <br />
               Address: Antipolo City, Rizal, Philippines
             </p>

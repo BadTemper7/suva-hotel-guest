@@ -65,14 +65,14 @@ export default function Contact() {
       icon: "📞",
       title: "Phone",
       details: "(02) 8123 4567",
-      link: "tel:+63281234567",
+      link: "tel:+63 976023356 ",
       description: "Call us for immediate assistance",
     },
     {
       icon: "📧",
       title: "Email",
-      details: "info@suvasplace.com",
-      link: "mailto:info@suvasplace.com",
+      details: "suvasplaceinc@gmail.com",
+      link: "mailto:suvasplaceinc@gmail.com",
       description: "Send us an email anytime",
     },
     {
@@ -172,7 +172,7 @@ export default function Contact() {
               <div className="rounded-xl overflow-hidden h-48 bg-gray-100 border border-gray-200">
                 <iframe
                   title="Suva's Place Resort Location"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d247017.90518301172!2d121.08648085!3d14.62274275!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b763b75dfced%3A0x6e9e2ed0c13f03b0!2sAntipolo%2C%20Rizal!5e0!3m2!1sen!2sph!4v1700000000000!5m2!1sen!2sph"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.130524471811!2d121.1776588!3d14.5916374!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397bf51ef941ce1%3A0x4129f68c8e58bcbb!2sSuva&#39;s%20Place%20Resort!5e0!3m2!1sen!2sph!4v1774145930318!5m2!1sen!2sph"
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}

@@ -170,11 +170,11 @@ export default function GuestFooter() {
               </li>
               <li className="flex items-center gap-2">
                 <span>📞</span>
-                <span>(02) 8123 4567</span>
+                <span>+63 976023356</span>
               </li>
               <li className="flex items-center gap-2">
                 <span>📧</span>
-                <span>info@suvasplace.com</span>
+                <span>suvasplaceinc@gmail.com</span>
               </li>
             </ul>
           </div>

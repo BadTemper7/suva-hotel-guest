@@ -10,7 +10,7 @@ export default function FAQ() {
       questions: [
         {
           q: "How do I make a reservation?",
-          a: "You can make a reservation through our website by clicking the 'Book Now' button on any room page. You can also call us at (02) 8123 4567 or email info@suvasplace.com for assistance.",
+          a: "You can make a reservation through our website by clicking the 'Book Now' button on any room page. You can also call us at +63 976023356 or email suvasplaceinc@gmail.com for assistance.",
         },
         {
           q: "What is your cancellation policy?",

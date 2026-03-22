@@ -349,11 +349,11 @@ export default function GuestCottages() {
                     </p>
                     <p className="flex items-center justify-center gap-2">
                       <span>📞</span>
-                      <span>(02) 8123 4567</span>
+                      <span>+63 976023356</span>
                     </p>
                     <p className="flex items-center justify-center gap-2 mt-1">
                       <span>📧</span>
-                      <span>info@suvasplace.com</span>
+                      <span>suvasplaceinc@gmail.com</span>
                     </p>
                   </div>
                 </div>
