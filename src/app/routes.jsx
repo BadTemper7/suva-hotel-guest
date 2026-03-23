@@ -20,6 +20,7 @@ const GuestFAQ = lazy(() => import("../pages/FAQ.jsx"));
 
 // Guest Pages - No Layout (auth pages without GuestLayout)
 const GuestLogin = lazy(() => import("../pages/Login.jsx"));
+const VerifyEmail = lazy(() => import("../pages/VerifyEmail.jsx"));
 const GuestRegister = lazy(() => import("../pages/Register.jsx"));
 const GuestForgotPassword = lazy(() => import("../pages/ForgotPassword.jsx"));
 const GuestResetPassword = lazy(() => import("../pages/ResetPassword.jsx"));
@@ -83,11 +84,15 @@ export default [
     element: withLoader(GuestRegister, "Loading register..."),
   },
   {
+    path: "/verify-email",
+    element: <VerifyEmail />,
+  },
+  {
     path: "/forgot-password",
     element: withLoader(GuestForgotPassword, "Loading..."),
   },
   {
-    path: "/reset-password/:token",
+    path: "/reset-password",
     element: withLoader(GuestResetPassword, "Loading..."),
   },
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useGuestStore } from "../stores/guestStore";
 import Logo from "../components/layout/Logo.jsx";
+import VerificationNotice from "../components/VerificationNotice";
 
 export default function GuestLogin() {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ export default function GuestLogin() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -25,6 +28,11 @@ export default function GuestLogin() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (authError) clearError();
+    // Reset verification state when user starts typing
+    if (requiresVerification) {
+      setRequiresVerification(false);
+      setUnverifiedEmail("");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -33,6 +41,10 @@ export default function GuestLogin() {
 
     if (result.success) {
       navigate("/");
+    } else if (result.requiresVerification) {
+      // Show verification notice
+      setRequiresVerification(true);
+      setUnverifiedEmail(result.email || formData.email);
     }
   };
 
@@ -57,9 +69,16 @@ export default function GuestLogin() {
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* Verification Notice */}
+          {requiresVerification && (
+            <div className="mb-6">
+              <VerificationNotice email={unverifiedEmail} />
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Error Message */}
-            {authError && (
+            {authError && !requiresVerification && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
                 <div className="flex">
                   <div className="flex-shrink-0">

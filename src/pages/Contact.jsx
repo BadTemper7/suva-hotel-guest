@@ -92,7 +92,7 @@ export default function Contact() {
     {
       icon: "📞",
       title: "Phone",
-      details: "(02) 8123 4567",
+      details: "+63976023356",
       link: "tel:+63976023356",
       description: "Call us for immediate assistance",
     },

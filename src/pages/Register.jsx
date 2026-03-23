@@ -33,7 +33,8 @@ export default function GuestRegister() {
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [submitting, setSubmitting] = useState(false);
-
+  const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   // Password strength validation
   const [passwordErrors, setPasswordErrors] = useState({
     length: false,
@@ -248,7 +249,15 @@ export default function GuestRegister() {
     const result = await registerGuest(registerData);
 
     if (result.success) {
-      navigate("/");
+      // Check if verification is required
+      if (result.requiresVerification) {
+        // Show verification success page instead of navigating to home
+        setShowVerificationSuccess(true);
+        setRegisteredEmail(emailTrimmed);
+      } else {
+        // Old flow - navigate to home
+        navigate("/");
+      }
     } else {
       setMessage({
         type: "error",
@@ -872,6 +881,129 @@ export default function GuestRegister() {
           </motion.div>
         )}
       </AnimatePresence>
+      {showVerificationSuccess && (
+        <motion.div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          >
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600" />
+              <div className="relative px-6 py-5">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-xl bg-white/20 blur-sm" />
+                    <div className="relative p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+                      <svg
+                        className="w-6 h-6 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-white">
+                      Check Your Email
+                    </h3>
+                    <p className="text-sm text-white/80 mt-0.5">
+                      Verification link sent
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+                  <svg
+                    className="w-10 h-10 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">
+                  Verify Your Email Address
+                </h4>
+                <p className="text-gray-600">
+                  We've sent a verification email to{" "}
+                  <strong className="text-green-600">{registeredEmail}</strong>
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Please check your inbox and click the verification link to
+                  activate your account.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <svg
+                    className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">What's next?</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-700">
+                      <li>Open your email inbox</li>
+                      <li>Click the "Activate My Account" button</li>
+                      <li>Login to your account</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="flex-1 h-11 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-medium transition-all duration-200"
+                >
+                  Go to Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowVerificationSuccess(false)}
+                  className="flex-1 h-11 px-4 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

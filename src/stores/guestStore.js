@@ -76,7 +76,7 @@ export const useGuestStore = create((set, get) => ({
 
   // ==================== AUTHENTICATION METHODS ====================
 
-  // Register new guest account
+  // Update registerGuest method
   registerGuest: async (guestData) => {
     set({ authLoading: true, authError: null });
     try {
@@ -90,24 +90,37 @@ export const useGuestStore = create((set, get) => ({
       if (data.success) {
         const guest = data.guest;
 
-        // After registration, automatically log in to get token
-        const loginResult = await get().loginGuest(
-          guestData.email,
-          guestData.password,
-        );
-
-        if (loginResult.success) {
-          return loginResult;
-        }
-
+        // Don't automatically log in - wait for verification
         set({
           currentGuest: guest,
           isAuthenticated: false,
           authLoading: false,
+          guestExists: true,
         });
 
-        return { success: true, guest, message: data.message };
+        return {
+          success: true,
+          guest,
+          message: data.message,
+          requiresVerification: true,
+          emailSent: data.emailSent,
+        };
       } else {
+        // Handle case where email exists but not verified
+        if (data.requiresVerification) {
+          set({
+            authLoading: false,
+            guestExists: true,
+            currentGuest: null,
+          });
+          return {
+            success: false,
+            error: data.message,
+            requiresVerification: true,
+            email: data.email,
+          };
+        }
+
         set({
           authLoading: false,
           authError: data.message,
@@ -120,7 +133,7 @@ export const useGuestStore = create((set, get) => ({
     }
   },
 
-  // Login guest account
+  // Update the loginGuest method in your guestStore
   loginGuest: async (email, password) => {
     set({ authLoading: true, authError: null, needsRegistration: false });
     try {
@@ -155,6 +168,17 @@ export const useGuestStore = create((set, get) => ({
           authError: data.message,
           needsRegistration: data.needsRegistration || false,
         });
+
+        // Add specific handling for unverified email
+        if (data.requiresVerification) {
+          return {
+            success: false,
+            error: data.message,
+            requiresVerification: true,
+            email: email,
+          };
+        }
+
         return {
           success: false,
           error: data.message,
@@ -279,14 +303,24 @@ export const useGuestStore = create((set, get) => ({
       const data = await safeJson(res);
 
       set({ loading: false });
-      return {
-        success: true,
-        message: data.message,
-        resetToken: data.resetToken,
-      };
+
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message,
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message,
+        };
+      }
     } catch (err) {
       set({ loading: false, error: err.message });
-      throw err;
+      return {
+        success: false,
+        error: err.message,
+      };
     }
   },
 
@@ -302,10 +336,25 @@ export const useGuestStore = create((set, get) => ({
       const data = await safeJson(res);
 
       set({ loading: false });
-      return { success: true, message: data.message };
+
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message,
+          guest: data.guest,
+        };
+      } else {
+        return {
+          success: false,
+          error: data.message,
+        };
+      }
     } catch (err) {
       set({ loading: false, error: err.message });
-      throw err;
+      return {
+        success: false,
+        error: err.message,
+      };
     }
   },
   // ==================== GUEST MANAGEMENT METHODS ====================
@@ -468,7 +517,123 @@ export const useGuestStore = create((set, get) => ({
       }
     }
   },
+  verifyEmail: async (token) => {
+    set({ loading: true, authError: null });
+    try {
+      const res = await fetch(`${API}/guests/verify-email/${token}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await safeJson(res);
 
+      if (data.success) {
+        const guest = data.guest;
+
+        // Update auth storage with verified guest
+        setAuthed(true);
+        setToken(get().currentGuest ? getToken() : null);
+        setUser(guest);
+
+        set({
+          currentGuest: guest,
+          isAuthenticated: true,
+          loading: false,
+          authError: null,
+          guestExists: true,
+        });
+
+        return {
+          success: true,
+          message: data.message,
+          guest,
+        };
+      } else {
+        set({
+          loading: false,
+          authError: data.message,
+        });
+        return {
+          success: false,
+          error: data.message,
+        };
+      }
+    } catch (err) {
+      set({
+        loading: false,
+        authError: err.message,
+      });
+      return {
+        success: false,
+        error: err.message,
+      };
+    }
+  },
+
+  // Resend verification email
+  resendVerification: async (email) => {
+    set({ loading: true, authError: null });
+    try {
+      const res = await fetch(`${API}/guests/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await safeJson(res);
+
+      set({ loading: false });
+
+      return {
+        success: true,
+        message: data.message,
+      };
+    } catch (err) {
+      set({
+        loading: false,
+        authError: err.message,
+      });
+      return {
+        success: false,
+        error: err.message,
+      };
+    }
+  },
+
+  // Check if email needs verification
+  checkEmailVerificationStatus: async (email) => {
+    try {
+      const result = await get().findGuestByEmail(email);
+
+      if (result.exists && result.guest) {
+        // If guest exists but email not verified
+        if (result.guest.isEmailVerified === false) {
+          return {
+            exists: true,
+            isVerified: false,
+            guest: result.guest,
+          };
+        }
+        return {
+          exists: true,
+          isVerified: true,
+          guest: result.guest,
+        };
+      }
+
+      return {
+        exists: false,
+        isVerified: false,
+        guest: null,
+      };
+    } catch (error) {
+      console.error("Error checking verification status:", error);
+      return {
+        exists: false,
+        isVerified: false,
+        guest: null,
+        error: error.message,
+      };
+    }
+  },
   // Update guest (without password verification)
   updateGuest: async (id, updates) => {
     set({ loading: true, error: null });
