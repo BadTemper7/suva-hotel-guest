@@ -33,7 +33,7 @@ export default function About() {
       >
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent z-10"></div>
         <img
-          src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200"
+          src="/images/home-about/about1.webp"
           alt="Suva's Place Resort"
           className="w-full h-[500px] object-cover"
         />
@@ -112,22 +112,22 @@ export default function About() {
         <motion.div variants={fadeInUp} className="relative">
           <div className="grid grid-cols-2 gap-4">
             <img
-              src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400"
+              src="/images/about/about1.webp"
               alt="Historic Suva's Place"
               className="rounded-xl h-48 object-cover shadow-lg"
             />
             <img
-              src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400"
+              src="/images/about/about2.webp"
               alt="Resort Heritage"
               className="rounded-xl h-48 object-cover shadow-lg mt-8"
             />
             <img
-              src="https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?w=400"
+              src="/images/about/about3.webp"
               alt="Pool Area"
               className="rounded-xl h-48 object-cover shadow-lg -mt-4"
             />
             <img
-              src="https://images.unsplash.com/photo-1590490360182-c33d57733427?w=400"
+              src="/images/about/about4.webp"
               alt="Cottages"
               className="rounded-xl h-48 object-cover shadow-lg"
             />
