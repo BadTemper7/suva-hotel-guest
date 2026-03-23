@@ -15,24 +15,21 @@ const Home = () => {
 
   const heroSlides = [
     {
-      image:
-        "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3",
+      image: "/images/carousel/carousel1.JPG",
       title: "Welcome to Suva's Place",
       subtitle: "Experience Luxury in Antipolo",
       description:
         "Nestled in the heart of Antipolo, discover a serene paradise where comfort meets nature.",
     },
     {
-      image:
-        "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3",
+      image: "/images/carousel/carousel2.webp",
       title: "Perfect Getaway",
       subtitle: "Create Unforgettable Memories",
       description:
         "Whether for romance or family fun, create lasting memories in our tropical haven.",
     },
     {
-      image:
-        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?ixlib=rb-4.0.3",
+      image: "/images/carousel/carousel3.webp",
       title: "Relax & Rejuvenate",
       subtitle: "Escape the Ordinary",
       description:
@@ -339,7 +336,7 @@ const Home = () => {
             >
               <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                 <img
-                  src="https://images.unsplash.com/photo-1561501900-3701fa6a0864?ixlib=rb-4.0.3"
+                  src="/images/home-about/about1.webp"
                   alt="About Suva's Place"
                   className="w-full h-auto"
                 />
