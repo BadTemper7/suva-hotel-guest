@@ -26,12 +26,11 @@ export const useReservationStore = create((set, get) => ({
   error: null,
   reportLoading: false,
   reportError: null,
-  guestReservations: [], // Store for guest-specific reservations
+  guestReservations: [],
   guestReservationsLoading: false,
 
   // ==================== ADMIN RESERVATIONS ====================
 
-  // Fetch all reservations (admin)
   fetchReservations: async () => {
     set({ loading: true, error: null });
     try {
@@ -48,7 +47,6 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Fetch single reservation by ID
   fetchReservation: async (id) => {
     set({ loading: true, error: null });
     try {
@@ -68,14 +66,12 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Alias for fetchReservation
   getReservationById: async (id) => {
     return get().fetchReservation(id);
   },
 
   // ==================== GUEST RESERVATIONS ====================
 
-  // Fetch reservations for a specific guest
   fetchGuestReservations: async (guestId, options = {}) => {
     const { type = "all", status, startDate, endDate, sortBy } = options;
 
@@ -92,7 +88,6 @@ export const useReservationStore = create((set, get) => ({
         url = `${API}/reservations/guest/${guestId}`;
       }
 
-      // Add query parameters if provided
       const params = new URLSearchParams();
       if (status) params.append("status", status);
       if (startDate) params.append("startDate", startDate);
@@ -125,17 +120,14 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Get upcoming reservations for a guest
   fetchUpcomingReservations: async (guestId) => {
     return get().fetchGuestReservations(guestId, { type: "upcoming" });
   },
 
-  // Get past reservations for a guest
   fetchPastReservations: async (guestId) => {
     return get().fetchGuestReservations(guestId, { type: "past" });
   },
 
-  // Get reservation summary for a guest
   fetchGuestReservationSummary: async (guestId) => {
     set({ loading: true, error: null });
     try {
@@ -162,7 +154,6 @@ export const useReservationStore = create((set, get) => ({
 
   // ==================== RESERVATION OPERATIONS ====================
 
-  // Update reservation status
   updateReservationStatus: async (id, status) => {
     set({ loading: true, error: null });
     try {
@@ -175,7 +166,6 @@ export const useReservationStore = create((set, get) => ({
       const data = await safeJson(res);
       const reservation = data.reservation || data.data || data;
 
-      // Update in both admin and guest reservations if present
       set((state) => ({
         reservations: state.reservations.map((r) =>
           r._id === id ? reservation : r,
@@ -199,14 +189,12 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Cancel reservation
   cancelReservation: async (id) => {
     return get().updateReservationStatus(id, "cancelled");
   },
 
   // ==================== CREATE RESERVATION ====================
 
-  // Original createReservation (kept for backward compatibility)
   createReservation: async (payload) => {
     set({ loading: true, error: null });
     try {
@@ -234,7 +222,7 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Create full reservation (complete flow for logged-in guests)
+  // Create full reservation with AddOns
   createFullReservation: async ({
     guest,
     reservationData,
@@ -246,18 +234,16 @@ export const useReservationStore = create((set, get) => ({
   }) => {
     set({ loading: true, error: null });
     try {
-      // Fetch available rooms for the selected dates
+      // Fetch available rooms
       const availableRooms = await fetch(
         `${API}/reservations/rooms?checkIn=${reservationData.checkIn}&checkOut=${reservationData.checkOut}`,
       );
       const availableRoomsResponse = await safeJson(availableRooms);
 
-      // Create a Set of available room IDs
       const availableRoomIds = new Set(
         availableRoomsResponse.availableRooms.map((room) => room._id),
       );
 
-      // Check each selected room
       const unavailableRooms = [];
       const availableRoomsDetails = [];
 
@@ -353,19 +339,18 @@ export const useReservationStore = create((set, get) => ({
         throw new Error("Failed to create reservation");
       }
 
-      // Update store
       set((state) => ({
         reservations: [reservation, ...state.reservations],
         currentReservation: reservation,
       }));
 
-      // Step 3: Add rooms
+      // Step 3: Add rooms with AddOns
       if (rooms.length > 0) {
         const roomsPayload = {
           reservationId: reservationId,
           rooms: rooms.map((room) => ({
             roomId: room.roomId,
-            amenities: room.amenities || [],
+            addOns: room.addOns || [], // Changed from amenities to addOns
           })),
         };
 
@@ -470,7 +455,6 @@ export const useReservationStore = create((set, get) => ({
 
   // ==================== AVAILABILITY ====================
 
-  // Fetch available rooms for dates
   fetchAvailableRooms: async ({ checkIn, checkOut }) => {
     set({ loading: true, error: null });
     try {
@@ -494,7 +478,6 @@ export const useReservationStore = create((set, get) => ({
 
   // ==================== DELETE OPERATIONS ====================
 
-  // Delete single reservation
   deleteReservation: async (id) => {
     set({ loading: true, error: null });
     try {
@@ -533,7 +516,6 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Delete multiple reservations
   deleteMultipleReservations: async (reservationIds = []) => {
     set({ loading: true, error: null });
     try {
@@ -576,7 +558,6 @@ export const useReservationStore = create((set, get) => ({
 
   // ==================== UPDATE OPERATIONS ====================
 
-  // Update reservation rooms
   updateReservationRooms: async ({
     reservationId,
     rooms = [],
@@ -589,7 +570,7 @@ export const useReservationStore = create((set, get) => ({
           reservationId,
           rooms: rooms.map((room) => ({
             roomId: room.roomId,
-            amenities: room.amenities || [],
+            addOns: room.addOns || [], // Changed from amenities to addOns
           })),
         };
 
@@ -627,20 +608,20 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Update reservation amenities
-  updateReservationAmenities: async ({
+  // Update reservation add-ons (renamed from updateReservationAmenities)
+  updateReservationAddOns: async ({
     reservationId,
-    amenities = [],
-    removeAmenityIds = [],
+    addOns = [],
+    removeAddOnIds = [],
   }) => {
     set({ loading: true, error: null });
     try {
       const res = await fetch(
-        `${API}/reservations/${reservationId}/update-amenities`,
+        `${API}/reservations/${reservationId}/update-addons`, // Update endpoint if needed
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amenities, removeAmenityIds }),
+          body: JSON.stringify({ addOns, removeAddOnIds }),
         },
       );
       const data = await safeJson(res);
@@ -664,7 +645,6 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Update reservation dates
   updateReservationDates: async ({ reservationId, checkIn, checkOut }) => {
     set({ loading: true, error: null });
     try {
@@ -699,7 +679,6 @@ export const useReservationStore = create((set, get) => ({
 
   // ==================== UTILITY ====================
 
-  // Refresh current reservation
   refreshCurrentReservation: async () => {
     const state = get();
     const reservationId = state.currentReservation?._id;
@@ -707,17 +686,14 @@ export const useReservationStore = create((set, get) => ({
     return state.fetchReservation(reservationId);
   },
 
-  // Clear current reservation
   clearCurrentReservation: () => {
     set({ currentReservation: null, error: null });
   },
 
-  // Clear guest reservations
   clearGuestReservations: () => {
     set({ guestReservations: [], guestReservationsLoading: false });
   },
 
-  // Update local reservation
   updateLocalReservation: (updatedReservation) => {
     set((state) => ({
       reservations: state.reservations.map((r) =>
@@ -735,7 +711,6 @@ export const useReservationStore = create((set, get) => ({
     }));
   },
 
-  // Clear error
   clearError: () => set({ error: null }),
   clearReportError: () => set({ reportError: null }),
 }));
@@ -745,9 +720,11 @@ export const reservationHelpers = {
   formatRoomData: (rooms) =>
     rooms.map((room) => ({ roomId: room._id || room.roomId })),
 
-  formatAmenityData: (amenities) =>
-    amenities.map((a) => ({
-      amenityId: a._id || a.amenityId,
+  formatAddOnData: (
+    addOns, // Renamed from formatAmenityData
+  ) =>
+    addOns.map((a) => ({
+      addOnId: a._id || a.addOnId,
       quantity: a.quantity || 1,
     })),
 
@@ -756,7 +733,7 @@ export const reservationHelpers = {
       return {
         nights: 0,
         roomsSubtotal: 0,
-        amenitiesSubtotal: 0,
+        addOnsSubtotal: 0,
         totalAmount: 0,
       };
 
@@ -769,17 +746,18 @@ export const reservationHelpers = {
       return sum + roomRate * nights;
     }, 0);
 
-    const amenitiesSubtotal = (reservation.amenities || []).reduce(
-      (sum, amenity) => {
-        const rate = amenity.rate || amenity.amenityId?.rate || 0;
-        const quantity = amenity.quantity || 1;
+    const addOnsSubtotal = (reservation.addOns || []).reduce(
+      // Changed from amenities
+      (sum, addOn) => {
+        const rate = addOn.rate || addOn.addOnId?.rate || 0;
+        const quantity = addOn.quantity || 1;
         return sum + rate * quantity;
       },
       0,
     );
 
-    const totalAmount = roomsSubtotal + amenitiesSubtotal;
-    return { nights, roomsSubtotal, amenitiesSubtotal, totalAmount };
+    const totalAmount = roomsSubtotal + addOnsSubtotal;
+    return { nights, roomsSubtotal, addOnsSubtotal, totalAmount };
   },
 
   canModifyReservation: (reservation) =>
@@ -798,7 +776,7 @@ export const reservationHelpers = {
       roomTypeName: room.roomTypeName || room.roomId?.roomType?.name,
       rate: room.rate || room.roomId?.rate,
       capacity: room.capacity || room.roomId?.capacity,
-      amenities: room.amenities || [],
+      addOns: room.addOns || [], // Changed from amenities
     }));
   },
 

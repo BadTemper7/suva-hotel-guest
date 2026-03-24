@@ -289,10 +289,10 @@ export default function GuestRooms() {
                       Room #{room.roomNumber}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  {/* <div className="flex items-center gap-1">
                     <span className="text-yellow-400">★</span>
                     <span className="text-sm text-gray-600">4.8</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 <p className="text-gray-600 mb-4 line-clamp-2">
@@ -306,14 +306,14 @@ export default function GuestRooms() {
                     <span>👥</span>
                     <span>Up to {room.capacity || 2} guests</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  {/* <div className="flex items-center gap-1">
                     <span>🛏️</span>
                     <span>{room.bedType || "Queen"}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>📏</span>
                     <span>{room.size || "25"} m²</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Amenities Preview */}
@@ -345,7 +345,7 @@ export default function GuestRooms() {
                   </div>
 
                   {/* Contact Information */}
-                  <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
+                  {/* <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
                     <p className="font-semibold text-gray-700 mb-1">
                       For inquiries and reservations:
                     </p>
@@ -357,7 +357,7 @@ export default function GuestRooms() {
                       <span>📧</span>
                       <span>suvasplaceinc@gmail.com</span>
                     </p>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>

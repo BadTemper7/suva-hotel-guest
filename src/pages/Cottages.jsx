@@ -282,14 +282,11 @@ export default function GuestCottages() {
                     <h3 className="text-xl font-semibold text-gray-800">
                       Cottage #{cottage.roomNumber}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      Traditional Filipino Style
-                    </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  {/* <div className="flex items-center gap-1">
                     <span className="text-yellow-400">★</span>
                     <span className="text-sm text-gray-600">4.9</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 <p className="text-gray-600 mb-4 line-clamp-2">
@@ -303,7 +300,7 @@ export default function GuestCottages() {
                     <span>👥</span>
                     <span>Up to {cottage.capacity || 6} guests</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  {/* <div className="flex items-center gap-1">
                     <span>🛏️</span>
                     <span>{cottage.bedType || "2 Queen Beds"}</span>
                   </div>
@@ -314,11 +311,11 @@ export default function GuestCottages() {
                   <div className="flex items-center gap-1">
                     <span>🌳</span>
                     <span>Garden View</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Amenities */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                {/* <div className="flex flex-wrap gap-2 mb-4">
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
                     Private Veranda
                   </span>
@@ -331,7 +328,7 @@ export default function GuestCottages() {
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
                     Hot & Cold Shower
                   </span>
-                </div>
+                </div> */}
 
                 {/* Price and Contact Info */}
                 <div className="pt-4 border-t border-gray-100">
@@ -343,7 +340,7 @@ export default function GuestCottages() {
                   </div>
 
                   {/* Contact Information */}
-                  <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
+                  {/* <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
                     <p className="font-semibold text-gray-700 mb-1">
                       For inquiries and reservations:
                     </p>
@@ -355,7 +352,7 @@ export default function GuestCottages() {
                       <span>📧</span>
                       <span>suvasplaceinc@gmail.com</span>
                     </p>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>

@@ -228,21 +228,6 @@ export default function RoomPolicy() {
               </p>
             </div>
 
-            {/* Section 14 - Minors */}
-            <div className="border-l-4 border-blue-500 pl-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                14. Minors
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                Minors are not allowed to avail the Cuarto's and Teodora's
-                motel; children under 18 years old are only allowed if
-                accompanied by parents or guardians. Additional pax is limited
-                to two (2) persons age 10 years old and below. Additional pax
-                are required to pay
-                <span className="font-semibold"> ₱200.00</span> per head.
-              </p>
-            </div>
-
             {/* Responsibility Statement */}
             <div className="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
               <p className="text-gray-800 font-medium text-center">
