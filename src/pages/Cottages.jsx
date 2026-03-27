@@ -69,10 +69,16 @@ export default function GuestCottages() {
     if (rooms && rooms.length > 0) {
       let filtered = rooms.filter((room) => room.category === "cottage");
 
-      // Search by cottage number
+      // Search by cottage number or description
       if (searchTerm) {
-        filtered = filtered.filter((cottage) =>
-          cottage.roomNumber?.toLowerCase().includes(searchTerm.toLowerCase()),
+        filtered = filtered.filter(
+          (cottage) =>
+            cottage.roomNumber
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            cottage.description
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()),
         );
       }
 
@@ -129,16 +135,6 @@ export default function GuestCottages() {
     setSearchTerm("");
     setSelectedCapacity("");
     setSelectedPriceRange("");
-  };
-
-  const handleBookNow = (cottageId) => {
-    if (!isAuthenticated) {
-      // Redirect to login with return URL
-      navigate("/login", { state: { from: "/cottages" } });
-      return;
-    }
-    // Navigate to reservation page with pre-selected cottage
-    navigate("/booking-process", { state: { preSelectedRoomId: cottageId } });
   };
 
   // Show loading while checking auth or availability
@@ -228,7 +224,7 @@ export default function GuestCottages() {
             </label>
             <input
               type="text"
-              placeholder="Cottage number..."
+              placeholder="Cottage number or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
@@ -303,6 +299,8 @@ export default function GuestCottages() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredCottages.map((cottage) => {
             const isAvailable = availableCottageIds.has(cottage._id);
+            const hasDescription =
+              cottage.description && cottage.description.trim().length > 0;
 
             return (
               <div
@@ -323,19 +321,6 @@ export default function GuestCottages() {
                     </div>
                   )}
 
-                  {/* Availability Badge */}
-                  <div className="absolute top-4 left-4">
-                    <div
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        isAvailable
-                          ? "bg-green-500 text-white"
-                          : "bg-red-500 text-white"
-                      }`}
-                    >
-                      {isAvailable ? "Available Now" : "Not Available"}
-                    </div>
-                  </div>
-
                   {/* Cottage Type Badge */}
                   <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm">
                     Cottage
@@ -351,10 +336,18 @@ export default function GuestCottages() {
                     </div>
                   </div>
 
-                  <p className="text-gray-600 mb-4 line-clamp-2">
-                    {cottage.description ||
-                      `A charming cottage perfect for ${cottage.capacity || 6} guests. Features traditional Filipino architecture with modern comforts.`}
-                  </p>
+                  {/* Description - Show full description */}
+                  <div className="mb-4">
+                    {hasDescription ? (
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        {cottage.description}
+                      </p>
+                    ) : (
+                      <p className="text-gray-500 text-sm italic">
+                        No description available for this cottage.
+                      </p>
+                    )}
+                  </div>
 
                   {/* Cottage Features */}
                   <div className="grid grid-cols-2 gap-2 mb-4 text-sm text-gray-500">
@@ -362,9 +355,13 @@ export default function GuestCottages() {
                       <span>👥</span>
                       <span>Up to {cottage.capacity || 6} guests</span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <span>💰</span>
+                      <span>{formatPrice(cottage.rate)}/night</span>
+                    </div>
                   </div>
 
-                  {/* Price and Book Button */}
+                  {/* Price Display Only - No Book Now Button */}
                   <div className="pt-4 border-t border-gray-100">
                     <div className="flex justify-between items-center">
                       <div>
@@ -374,18 +371,41 @@ export default function GuestCottages() {
                         <span className="text-gray-500 text-sm"> / night</span>
                       </div>
 
-                      <button
-                        onClick={() => handleBookNow(cottage._id)}
-                        disabled={!isAvailable}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                          isAvailable
-                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        {isAvailable ? "Book Now" : "Not Available"}
-                      </button>
+                      {/* Availability Status Text */}
+                      <div className="text-sm">
+                        {isAvailable ? (
+                          <span className="text-green-600 font-medium">
+                            ✓ Available Today
+                          </span>
+                        ) : (
+                          <span className="text-red-600 font-medium">
+                            ✗ Not Available Today
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Login/Register Prompt */}
+                    {!isAuthenticated && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                        <p className="text-xs text-gray-500">
+                          <Link
+                            to="/login"
+                            className="text-green-600 hover:underline"
+                          >
+                            Login
+                          </Link>{" "}
+                          or{" "}
+                          <Link
+                            to="/register"
+                            className="text-green-600 hover:underline"
+                          >
+                            Register
+                          </Link>{" "}
+                          to make a reservation
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

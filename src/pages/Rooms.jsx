@@ -65,14 +65,15 @@ export default function GuestRooms() {
     if (rooms && rooms.length > 0) {
       let filtered = rooms.filter((room) => room.category === "room");
 
-      // Search by room number or type
+      // Search by room number or type or description
       if (searchTerm) {
         filtered = filtered.filter(
           (room) =>
             room.roomNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             room.roomType?.name
               ?.toLowerCase()
-              .includes(searchTerm.toLowerCase()),
+              .includes(searchTerm.toLowerCase()) ||
+            room.description?.toLowerCase().includes(searchTerm.toLowerCase()),
         );
       }
 
@@ -129,16 +130,6 @@ export default function GuestRooms() {
     setSearchTerm("");
     setSelectedCapacity("");
     setSelectedPriceRange("");
-  };
-
-  const handleBookNow = (roomId) => {
-    if (!isAuthenticated) {
-      // Redirect to login with return URL
-      navigate("/login", { state: { from: "/rooms" } });
-      return;
-    }
-    // Navigate to reservation page with pre-selected room
-    navigate("/booking-process", { state: { preSelectedRoomId: roomId } });
   };
 
   // Show loading while checking auth or availability
@@ -228,7 +219,7 @@ export default function GuestRooms() {
             </label>
             <input
               type="text"
-              placeholder="Room number or type..."
+              placeholder="Room number, type, or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -302,6 +293,8 @@ export default function GuestRooms() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredRooms.map((room) => {
             const isAvailable = availableRoomIds.has(room._id);
+            const hasDescription =
+              room.description && room.description.trim().length > 0;
 
             return (
               <div
@@ -322,19 +315,6 @@ export default function GuestRooms() {
                     </div>
                   )}
 
-                  {/* Availability Badge */}
-                  <div className="absolute top-4 left-4">
-                    <div
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        isAvailable
-                          ? "bg-green-500 text-white"
-                          : "bg-red-500 text-white"
-                      }`}
-                    >
-                      {isAvailable ? "Available Now" : "Not Available"}
-                    </div>
-                  </div>
-
                   {/* Room Type Badge */}
                   <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
                     {room.roomType?.name || "Standard"}
@@ -353,10 +333,18 @@ export default function GuestRooms() {
                     </div>
                   </div>
 
-                  <p className="text-gray-600 mb-4 line-clamp-2">
-                    {room.description ||
-                      `A comfortable ${room.roomType?.name || "room"} with modern amenities and beautiful views.`}
-                  </p>
+                  {/* Description - Show full description */}
+                  <div className="mb-4">
+                    {hasDescription ? (
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        {room.description}
+                      </p>
+                    ) : (
+                      <p className="text-gray-500 text-sm italic">
+                        No description available for this room.
+                      </p>
+                    )}
+                  </div>
 
                   {/* Room Specs */}
                   <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-500">
@@ -364,9 +352,13 @@ export default function GuestRooms() {
                       <span>👥</span>
                       <span>Up to {room.capacity || 2} guests</span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <span>💰</span>
+                      <span>{formatPrice(room.rate)}/night</span>
+                    </div>
                   </div>
 
-                  {/* Amenities Preview */}
+                  {/* Amenities Preview - Show if available */}
                   {room.amenities && room.amenities.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4">
                       {room.amenities.slice(0, 3).map((amenity, idx) => (
@@ -385,7 +377,7 @@ export default function GuestRooms() {
                     </div>
                   )}
 
-                  {/* Price and Book Button */}
+                  {/* Price Display Only - No Book Now Button */}
                   <div className="pt-4 border-t border-gray-100">
                     <div className="flex justify-between items-center">
                       <div>
@@ -395,18 +387,41 @@ export default function GuestRooms() {
                         <span className="text-gray-500 text-sm"> / night</span>
                       </div>
 
-                      <button
-                        onClick={() => handleBookNow(room._id)}
-                        disabled={!isAvailable}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                          isAvailable
-                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        {isAvailable ? "Book Now" : "Not Available"}
-                      </button>
+                      {/* Availability Status Text */}
+                      <div className="text-sm">
+                        {isAvailable ? (
+                          <span className="text-green-600 font-medium">
+                            ✓ Available Today
+                          </span>
+                        ) : (
+                          <span className="text-red-600 font-medium">
+                            ✗ Not Available Today
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Login/Register Prompt */}
+                    {!isAuthenticated && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                        <p className="text-xs text-gray-500">
+                          <Link
+                            to="/login"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Login
+                          </Link>{" "}
+                          or{" "}
+                          <Link
+                            to="/register"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Register
+                          </Link>{" "}
+                          to make a reservation
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

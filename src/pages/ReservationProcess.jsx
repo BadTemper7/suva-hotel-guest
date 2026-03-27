@@ -948,48 +948,73 @@ export default function GuestReservation() {
                 }
               >
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Check In Date - Fixed time 2:00 PM */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Check In Date & Time *
                     </label>
-                    <input
-                      type="datetime-local"
-                      min={toISODateTime(new Date())}
-                      value={reservationFormData.checkIn}
-                      onChange={(e) =>
-                        setReservationFormData({
-                          ...reservationFormData,
-                          checkIn: e.target.value,
-                        })
-                      }
-                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        min={toISODateTime(new Date()).split("T")[0]}
+                        value={reservationFormData.checkIn.split("T")[0]}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          if (newDate) {
+                            // Keep the time fixed at 14:00 (2:00 PM)
+                            const newDateTime = `${newDate}T14:00`;
+                            setReservationFormData({
+                              ...reservationFormData,
+                              checkIn: newDateTime,
+                            });
+                          }
+                        }}
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 bg-white px-2">
+                        2:00 PM
+                      </div>
+                    </div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Check-in time: 2:00 PM
+                      Check-in time is fixed at 2:00 PM
                     </div>
                     <FieldError text={errors.checkIn} />
                   </div>
+
+                  {/* Check Out Date - Fixed time 12:00 NN */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Check Out Date & Time *
                     </label>
-                    <input
-                      type="datetime-local"
-                      min={checkOutMin}
-                      value={reservationFormData.checkOut}
-                      onChange={(e) =>
-                        setReservationFormData({
-                          ...reservationFormData,
-                          checkOut: e.target.value,
-                        })
-                      }
-                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkOut ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        min={checkOutMin.split("T")[0]}
+                        value={reservationFormData.checkOut.split("T")[0]}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          if (newDate) {
+                            // Keep the time fixed at 12:00 (12:00 NN)
+                            const newDateTime = `${newDate}T12:00`;
+                            setReservationFormData({
+                              ...reservationFormData,
+                              checkOut: newDateTime,
+                            });
+                          }
+                        }}
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkOut ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 bg-white px-2">
+                        12:00 NN
+                      </div>
+                    </div>
                     <div className="mt-1 text-xs text-gray-500">
-                      Check-out time: 12:00 PM
+                      Check-out time is fixed at 12:00 PM
                     </div>
                     <FieldError text={errors.checkOut} />
                   </div>
+
+                  {/* Adults */}
                   <div>
                     <NumberInput
                       label="Adults *"
@@ -1010,6 +1035,8 @@ export default function GuestReservation() {
                       {calculateMaxRooms(reservationFormData.adults)}
                     </div>
                   </div>
+
+                  {/* Children */}
                   <div>
                     <NumberInput
                       label="Children"
@@ -1028,6 +1055,8 @@ export default function GuestReservation() {
                     />
                   </div>
                 </div>
+
+                {/* Notes */}
                 <div className="mt-4">
                   <label className="text-sm font-medium text-gray-700">
                     Notes (Optional)

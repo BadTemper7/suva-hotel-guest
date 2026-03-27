@@ -13,10 +13,5 @@ export default function App() {
     initialize();
   }, [initialize]);
 
-  // Optional: Log authentication status for debugging
-  useEffect(() => {
-    console.log("App auth status:", { isAuthenticated, currentGuest });
-  }, [isAuthenticated, currentGuest]);
-
   return <>{element}</>;
 }
