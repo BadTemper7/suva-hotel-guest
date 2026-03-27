@@ -307,6 +307,13 @@ export default function GuestReservation() {
       return false;
     }
 
+    // Validate reference number length if provided
+    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
+      if (referenceNumber.length < 10) {
+        return false; // Too short
+      }
+    }
+
     if (payment.discountId && !selectedDiscountImage) {
       return false;
     }
@@ -516,6 +523,17 @@ export default function GuestReservation() {
 
     if (requiresReceipt && !referenceNumber && !selectedReceiptImage) {
       errors.receipt = "Either reference number OR receipt image is required.";
+    }
+
+    // Validate reference number length if provided
+    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
+      if (referenceNumber.length < 10) {
+        errors.receipt = "Reference number must be at least 10 digits.";
+      }
+      // Optional: Add maximum length validation
+      if (referenceNumber.length > 50) {
+        errors.receipt = "Reference number cannot exceed 50 digits.";
+      }
     }
 
     if (payment.discountId && !selectedDiscountImage) {
@@ -1555,19 +1573,8 @@ export default function GuestReservation() {
                       min="0"
                       step="0.01"
                       value={payment.amountPaid}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        setPayment({
-                          ...payment,
-                          amountPaid: value,
-                          amountReceived:
-                            payment.amountReceived < value
-                              ? value
-                              : payment.amountReceived,
-                        });
-                        setFieldError("amountPaid", "");
-                      }}
-                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      disabled={true}
+                      className="mt-1 w-full h-11 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed px-4 text-sm outline-none"
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
@@ -1684,15 +1691,55 @@ export default function GuestReservation() {
                             type="text"
                             value={referenceNumber}
                             onChange={(e) => {
-                              setReferenceNumber(e.target.value);
-                              setFieldError("receipt", "");
-                              if (e.target.value && selectedReceiptImage) {
+                              // Allow only numbers
+                              const value = e.target.value.replace(
+                                /[^0-9]/g,
+                                "",
+                              );
+
+                              // Apply minimum and maximum length limits (adjust as needed)
+                              if (value.length <= 50) {
+                                // Maximum limit of 50 characters
+                                setReferenceNumber(value);
                                 setFieldError("receipt", "");
+                                if (value && selectedReceiptImage) {
+                                  setFieldError("receipt", "");
+                                }
+
+                                // Optional: Show warning for minimum length (e.g., 10 digits)
+                                if (value.length > 0 && value.length < 10) {
+                                  setFieldError(
+                                    "receipt",
+                                    "Reference number should be at least 10 digits",
+                                  );
+                                } else if (
+                                  value.length > 0 &&
+                                  value.length >= 10
+                                ) {
+                                  setFieldError("receipt", "");
+                                }
                               }
                             }}
-                            placeholder="e.g., GCash Ref #, Bank Transfer Ref #"
+                            onBlur={() => {
+                              // Validate minimum length on blur
+                              if (
+                                referenceNumber &&
+                                referenceNumber.length > 0 &&
+                                referenceNumber.length < 10
+                              ) {
+                                setFieldError(
+                                  "receipt",
+                                  "Reference number must be at least 10 digits",
+                                );
+                              }
+                            }}
+                            placeholder="e.g., 1234567890 (numbers only)"
+                            maxLength={50}
                             className="w-full h-11 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200"
                           />
+                          <div className="mt-1 text-xs text-gray-500">
+                            Numbers only • Minimum 10 digits • Maximum 50 digits
+                          </div>
                         </div>
 
                         {/* OR Divider */}
@@ -1795,7 +1842,9 @@ export default function GuestReservation() {
                               {referenceNumber && receiptImagePreview
                                 ? "✓ Both reference number and image provided"
                                 : referenceNumber
-                                  ? "✓ Reference number provided"
+                                  ? referenceNumber.length < 10
+                                    ? "⚠️ Reference number too short (minimum 10 digits)"
+                                    : "✓ Reference number provided"
                                   : "✓ Receipt image uploaded"}
                             </div>
                           ) : (

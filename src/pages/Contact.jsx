@@ -85,15 +85,15 @@ export default function Contact() {
     {
       icon: "📍",
       title: "Address",
-      details: "Antipolo City, Rizal, Philippines",
+      details: "Brgy, 242 San Jose St, San Isidro, Antipolo, 1870 Rizal",
       link: "https://maps.google.com",
       description: "Visit us in the heart of Antipolo",
     },
     {
       icon: "📞",
       title: "Phone",
-      details: "+63976023356",
-      link: "tel:+63976023356",
+      details: "+639760233563",
+      link: "tel:+639760233563",
       description: "Call us for immediate assistance",
     },
     {
@@ -126,11 +126,6 @@ export default function Contact() {
       question: "Are pets allowed?",
       answer:
         "We have a limited number of pet-friendly rooms available. Please contact us in advance to make arrangements. Additional fees may apply.",
-    },
-    {
-      question: "Do you offer airport transportation?",
-      answer:
-        "Yes, we offer airport shuttle service for an additional fee. Please contact us at least 24 hours in advance to arrange pick-up.",
     },
     {
       question: "What amenities are included?",

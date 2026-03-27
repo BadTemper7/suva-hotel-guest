@@ -166,7 +166,9 @@ export default function GuestFooter() {
             <ul className="space-y-2 text-sm text-gray-400">
               <li className="flex items-start gap-2">
                 <span>📍</span>
-                <span>Antipolo City, Rizal, Philippines</span>
+                <span>
+                  Brgy, 242 San Jose St, San Isidro, Antipolo, 1870 Rizal
+                </span>
               </li>
               <li className="flex items-center gap-2">
                 <span>📞</span>

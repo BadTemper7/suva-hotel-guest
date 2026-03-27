@@ -689,13 +689,13 @@ const Home = () => {
                 color: "from-blue-500 to-cyan-500",
                 delay: 0,
               },
-              {
-                icon: "🍽️",
-                title: "Restaurant",
-                desc: "Delicious local & international cuisine prepared by expert chefs",
-                color: "from-orange-500 to-red-500",
-                delay: 0.1,
-              },
+              // {
+              //   icon: "🍽️",
+              //   title: "Restaurant",
+              //   desc: "Delicious local & international cuisine prepared by expert chefs",
+              //   color: "from-orange-500 to-red-500",
+              //   delay: 0.1,
+              // },
               {
                 icon: "🌳",
                 title: "Garden Views",
@@ -717,13 +717,13 @@ const Home = () => {
                 color: "from-amber-500 to-yellow-500",
                 delay: 0.4,
               },
-              {
-                icon: "🎣",
-                title: "Recreation",
-                desc: "Fishing, boating, and various outdoor activities available",
-                color: "from-teal-500 to-cyan-500",
-                delay: 0.5,
-              },
+              // {
+              //   icon: "🎣",
+              //   title: "Recreation",
+              //   desc: "Fishing, boating, and various outdoor activities available",
+              //   color: "from-teal-500 to-cyan-500",
+              //   delay: 0.5,
+              // },
               {
                 icon: "📶",
                 title: "Free Wi-Fi",
@@ -731,13 +731,13 @@ const Home = () => {
                 color: "from-indigo-500 to-blue-500",
                 delay: 0.6,
               },
-              {
-                icon: "🎉",
-                title: "Events & Parties",
-                desc: "Perfect venue for birthdays, weddings, and corporate events",
-                color: "from-rose-500 to-pink-500",
-                delay: 0.7,
-              },
+              // {
+              //   icon: "🎉",
+              //   title: "Events & Parties",
+              //   desc: "Perfect venue for birthdays, weddings, and corporate events",
+              //   color: "from-rose-500 to-pink-500",
+              //   delay: 0.7,
+              // },
             ].map((feature, index) => (
               <motion.div
                 key={index}
