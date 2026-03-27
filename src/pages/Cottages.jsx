@@ -3,23 +3,66 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
 import { useGuestStore } from "../stores/guestStore";
+import { useReservationStore } from "../stores/reservationStore";
 
 export default function GuestCottages() {
   const navigate = useNavigate();
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const { isAuthenticated, checkAuth, initialize, initialized } =
     useGuestStore();
+  const { fetchAvailableRooms } = useReservationStore();
   const [filteredCottages, setFilteredCottages] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
+  const [availableCottageIds, setAvailableCottageIds] = useState(new Set());
+  const [checkingAvailability, setCheckingAvailability] = useState(true);
+
+  // Get today's date for availability check
+  const getTodayDate = () => {
+    const today = new Date();
+    today.setHours(14, 0, 0, 0); // Set to 2:00 PM check-in time
+    return today.toISOString();
+  };
+
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12, 0, 0, 0); // Set to 12:00 PM check-out time
+    return tomorrow.toISOString();
+  };
 
   useEffect(() => {
     document.title = "Suva's Place Resort - Cottages";
     // Fetch rooms - now works without authentication
     fetchRooms({ status: "active" });
-  }, [fetchRooms]);
+
+    // Check availability for today
+    const checkAvailability = async () => {
+      setCheckingAvailability(true);
+      try {
+        const availableRooms = await fetchAvailableRooms({
+          checkIn: getTodayDate(),
+          checkOut: getTomorrowDate(),
+        });
+
+        // Create a Set of available cottage IDs for quick lookup
+        const availableIds = new Set(
+          availableRooms
+            .filter((room) => room.category === "cottage")
+            .map((room) => room._id),
+        );
+        setAvailableCottageIds(availableIds);
+      } catch (error) {
+        console.error("Error checking cottage availability:", error);
+      } finally {
+        setCheckingAvailability(false);
+      }
+    };
+
+    checkAvailability();
+  }, [fetchRooms, fetchAvailableRooms]);
 
   // Filter cottages when rooms data changes or filters change
   useEffect(() => {
@@ -88,13 +131,25 @@ export default function GuestCottages() {
     setSelectedPriceRange("");
   };
 
-  // Show loading while checking auth
-  if (checkingAuth || !initialized) {
+  const handleBookNow = (cottageId) => {
+    if (!isAuthenticated) {
+      // Redirect to login with return URL
+      navigate("/login", { state: { from: "/cottages" } });
+      return;
+    }
+    // Navigate to reservation page with pre-selected cottage
+    navigate("/booking-process", { state: { preSelectedRoomId: cottageId } });
+  };
+
+  // Show loading while checking auth or availability
+  if (checkingAuth || !initialized || checkingAvailability) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">
+            Loading cottages and checking availability...
+          </p>
         </div>
       </div>
     );
@@ -246,117 +301,96 @@ export default function GuestCottages() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredCottages.map((cottage) => (
-            <div
-              key={cottage._id}
-              className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              {/* Cottage Image */}
-              <div className="relative h-64 overflow-hidden">
-                {cottage.images && cottage.images.length > 0 ? (
-                  <img
-                    src={cottage.images[0].url}
-                    alt={`Cottage ${cottage.roomNumber}`}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-green-200 to-blue-200 flex items-center justify-center">
-                    <span className="text-4xl">🏡</span>
+          {filteredCottages.map((cottage) => {
+            const isAvailable = availableCottageIds.has(cottage._id);
+
+            return (
+              <div
+                key={cottage._id}
+                className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+              >
+                {/* Cottage Image */}
+                <div className="relative h-64 overflow-hidden">
+                  {cottage.images && cottage.images.length > 0 ? (
+                    <img
+                      src={cottage.images[0].url}
+                      alt={`Cottage ${cottage.roomNumber}`}
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-green-200 to-blue-200 flex items-center justify-center">
+                      <span className="text-4xl">🏡</span>
+                    </div>
+                  )}
+
+                  {/* Availability Badge */}
+                  <div className="absolute top-4 left-4">
+                    <div
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        isAvailable
+                          ? "bg-green-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {isAvailable ? "Available Now" : "Not Available"}
+                    </div>
                   </div>
-                )}
-                {cottage.status === "unavailable" && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">
-                      Currently Unavailable
-                    </span>
+
+                  {/* Cottage Type Badge */}
+                  <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm">
+                    Cottage
                   </div>
-                )}
-                <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm">
-                  Cottage
+                </div>
+
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800">
+                        Cottage #{cottage.roomNumber}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {cottage.description ||
+                      `A charming cottage perfect for ${cottage.capacity || 6} guests. Features traditional Filipino architecture with modern comforts.`}
+                  </p>
+
+                  {/* Cottage Features */}
+                  <div className="grid grid-cols-2 gap-2 mb-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <span>👥</span>
+                      <span>Up to {cottage.capacity || 6} guests</span>
+                    </div>
+                  </div>
+
+                  {/* Price and Book Button */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-2xl font-bold text-green-600">
+                          {formatPrice(cottage.rate)}
+                        </span>
+                        <span className="text-gray-500 text-sm"> / night</span>
+                      </div>
+
+                      <button
+                        onClick={() => handleBookNow(cottage._id)}
+                        disabled={!isAvailable}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                          isAvailable
+                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        {isAvailable ? "Book Now" : "Not Available"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-800">
-                      Cottage #{cottage.roomNumber}
-                    </h3>
-                  </div>
-                  {/* <div className="flex items-center gap-1">
-                    <span className="text-yellow-400">★</span>
-                    <span className="text-sm text-gray-600">4.9</span>
-                  </div> */}
-                </div>
-
-                <p className="text-gray-600 mb-4 line-clamp-2">
-                  {cottage.description ||
-                    `A charming cottage perfect for ${cottage.capacity || 6} guests. Features traditional Filipino architecture with modern comforts.`}
-                </p>
-
-                {/* Cottage Features */}
-                <div className="grid grid-cols-2 gap-2 mb-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <span>👥</span>
-                    <span>Up to {cottage.capacity || 6} guests</span>
-                  </div>
-                  {/* <div className="flex items-center gap-1">
-                    <span>🛏️</span>
-                    <span>{cottage.bedType || "2 Queen Beds"}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>🏠</span>
-                    <span>Private Space</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>🌳</span>
-                    <span>Garden View</span>
-                  </div> */}
-                </div>
-
-                {/* Amenities */}
-                {/* <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                    Private Veranda
-                  </span>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                    Kitchenette
-                  </span>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                    Air Conditioning
-                  </span>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                    Hot & Cold Shower
-                  </span>
-                </div> */}
-
-                {/* Price and Contact Info */}
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="mb-3">
-                    <span className="text-2xl font-bold text-green-600">
-                      {formatPrice(cottage.rate)}
-                    </span>
-                    <span className="text-gray-500 text-sm"> / night</span>
-                  </div>
-
-                  {/* Contact Information */}
-                  {/* <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
-                    <p className="font-semibold text-gray-700 mb-1">
-                      For inquiries and reservations:
-                    </p>
-                    <p className="flex items-center justify-center gap-2">
-                      <span>📞</span>
-                      <span>+63 976023356</span>
-                    </p>
-                    <p className="flex items-center justify-center gap-2 mt-1">
-                      <span>📧</span>
-                      <span>suvasplaceinc@gmail.com</span>
-                    </p>
-                  </div> */}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

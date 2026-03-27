@@ -3,23 +3,62 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
 import { useGuestStore } from "../stores/guestStore";
+import { useReservationStore } from "../stores/reservationStore";
 
 export default function GuestRooms() {
   const navigate = useNavigate();
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const { isAuthenticated, checkAuth, initialize, initialized } =
     useGuestStore();
+  const { fetchAvailableRooms } = useReservationStore();
   const [filteredRooms, setFilteredRooms] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
+  const [availableRoomIds, setAvailableRoomIds] = useState(new Set());
+  const [checkingAvailability, setCheckingAvailability] = useState(true);
+
+  // Get today's date for availability check
+  const getTodayDate = () => {
+    const today = new Date();
+    today.setHours(14, 0, 0, 0); // Set to 2:00 PM check-in time
+    return today.toISOString();
+  };
+
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12, 0, 0, 0); // Set to 12:00 PM check-out time
+    return tomorrow.toISOString();
+  };
 
   useEffect(() => {
     document.title = "Suva's Place Resort - Rooms";
     // Fetch rooms - now works without authentication
     fetchRooms({ status: "active" });
-  }, [fetchRooms]);
+
+    // Check availability for today
+    const checkAvailability = async () => {
+      setCheckingAvailability(true);
+      try {
+        const availableRooms = await fetchAvailableRooms({
+          checkIn: getTodayDate(),
+          checkOut: getTomorrowDate(),
+        });
+
+        // Create a Set of available room IDs for quick lookup
+        const availableIds = new Set(availableRooms.map((room) => room._id));
+        setAvailableRoomIds(availableIds);
+      } catch (error) {
+        console.error("Error checking availability:", error);
+      } finally {
+        setCheckingAvailability(false);
+      }
+    };
+
+    checkAvailability();
+  }, [fetchRooms, fetchAvailableRooms]);
 
   // Filter rooms when rooms data changes or filters change
   useEffect(() => {
@@ -92,13 +131,25 @@ export default function GuestRooms() {
     setSelectedPriceRange("");
   };
 
-  // Show loading while checking auth
-  if (checkingAuth || !initialized) {
+  const handleBookNow = (roomId) => {
+    if (!isAuthenticated) {
+      // Redirect to login with return URL
+      navigate("/login", { state: { from: "/rooms" } });
+      return;
+    }
+    // Navigate to reservation page with pre-selected room
+    navigate("/booking-process", { state: { preSelectedRoomId: roomId } });
+  };
+
+  // Show loading while checking auth or availability
+  if (checkingAuth || !initialized || checkingAvailability) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">
+            Loading rooms and checking availability...
+          </p>
         </div>
       </div>
     );
@@ -249,119 +300,118 @@ export default function GuestRooms() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredRooms.map((room) => (
-            <div
-              key={room._id}
-              className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              {/* Room Image */}
-              <div className="relative h-64 overflow-hidden">
-                {room.images && room.images.length > 0 ? (
-                  <img
-                    src={room.images[0].url}
-                    alt={room.roomType?.name || "Room"}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-blue-200 to-green-200 flex items-center justify-center">
-                    <span className="text-4xl">🛏️</span>
-                  </div>
-                )}
-                {room.status === "unavailable" && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">
-                      Currently Unavailable
-                    </span>
-                  </div>
-                )}
-                <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
-                  {room.roomType?.name || "Standard"}
-                </div>
-              </div>
+          {filteredRooms.map((room) => {
+            const isAvailable = availableRoomIds.has(room._id);
 
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-800">
-                      {room.roomType?.name || "Room"} {room.roomNumber}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Room #{room.roomNumber}
-                    </p>
+            return (
+              <div
+                key={room._id}
+                className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+              >
+                {/* Room Image */}
+                <div className="relative h-64 overflow-hidden">
+                  {room.images && room.images.length > 0 ? (
+                    <img
+                      src={room.images[0].url}
+                      alt={room.roomType?.name || "Room"}
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-200 to-green-200 flex items-center justify-center">
+                      <span className="text-4xl">🛏️</span>
+                    </div>
+                  )}
+
+                  {/* Availability Badge */}
+                  <div className="absolute top-4 left-4">
+                    <div
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        isAvailable
+                          ? "bg-green-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {isAvailable ? "Available Now" : "Not Available"}
+                    </div>
                   </div>
-                  {/* <div className="flex items-center gap-1">
-                    <span className="text-yellow-400">★</span>
-                    <span className="text-sm text-gray-600">4.8</span>
-                  </div> */}
+
+                  {/* Room Type Badge */}
+                  <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+                    {room.roomType?.name || "Standard"}
+                  </div>
                 </div>
 
-                <p className="text-gray-600 mb-4 line-clamp-2">
-                  {room.description ||
-                    `A comfortable ${room.roomType?.name || "room"} with modern amenities and beautiful views.`}
-                </p>
-
-                {/* Room Specs */}
-                <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <span>👥</span>
-                    <span>Up to {room.capacity || 2} guests</span>
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800">
+                        {room.roomType?.name || "Room"} {room.roomNumber}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Room #{room.roomNumber}
+                      </p>
+                    </div>
                   </div>
-                  {/* <div className="flex items-center gap-1">
-                    <span>🛏️</span>
-                    <span>{room.bedType || "Queen"}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>📏</span>
-                    <span>{room.size || "25"} m²</span>
-                  </div> */}
-                </div>
 
-                {/* Amenities Preview */}
-                {room.amenities && room.amenities.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {room.amenities.slice(0, 3).map((amenity, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {room.description ||
+                      `A comfortable ${room.roomType?.name || "room"} with modern amenities and beautiful views.`}
+                  </p>
+
+                  {/* Room Specs */}
+                  <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <span>👥</span>
+                      <span>Up to {room.capacity || 2} guests</span>
+                    </div>
+                  </div>
+
+                  {/* Amenities Preview */}
+                  {room.amenities && room.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {room.amenities.slice(0, 3).map((amenity, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
+                        >
+                          {amenity.name || amenity}
+                        </span>
+                      ))}
+                      {room.amenities.length > 3 && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                          +{room.amenities.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Price and Book Button */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {formatPrice(room.rate)}
+                        </span>
+                        <span className="text-gray-500 text-sm"> / night</span>
+                      </div>
+
+                      <button
+                        onClick={() => handleBookNow(room._id)}
+                        disabled={!isAvailable}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                          isAvailable
+                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
                       >
-                        {amenity.name || amenity}
-                      </span>
-                    ))}
-                    {room.amenities.length > 3 && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                        +{room.amenities.length - 3} more
-                      </span>
-                    )}
+                        {isAvailable ? "Book Now" : "Not Available"}
+                      </button>
+                    </div>
                   </div>
-                )}
-
-                {/* Price and Contact Info */}
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="mb-3">
-                    <span className="text-2xl font-bold text-blue-600">
-                      {formatPrice(room.rate)}
-                    </span>
-                    <span className="text-gray-500 text-sm"> / night</span>
-                  </div>
-
-                  {/* Contact Information */}
-                  {/* <div className="text-center text-sm text-gray-500 border-t border-gray-100 pt-3">
-                    <p className="font-semibold text-gray-700 mb-1">
-                      For inquiries and reservations:
-                    </p>
-                    <p className="flex items-center justify-center gap-2">
-                      <span>📞</span>
-                      <span>+63 976023356</span>
-                    </p>
-                    <p className="flex items-center justify-center gap-2 mt-1">
-                      <span>📧</span>
-                      <span>suvasplaceinc@gmail.com</span>
-                    </p>
-                  </div> */}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
