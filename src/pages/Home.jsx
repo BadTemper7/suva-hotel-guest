@@ -299,34 +299,6 @@ const Home = () => {
                 vacation, or corporate retreat, we have the perfect
                 accommodations to suit your needs.
               </p>
-              <div className="grid grid-cols-2 gap-6" ref={statsRef}>
-                <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={isVisible ? { scale: 1 } : {}}
-                    transition={{ duration: 0.5, type: "spring" }}
-                    className="text-4xl font-bold text-blue-600"
-                  >
-                    {rooms.length}+
-                  </motion.div>
-                  <div className="text-sm text-gray-600 mt-2 font-medium">
-                    Available Rooms
-                  </div>
-                </div>
-                <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={isVisible ? { scale: 1 } : {}}
-                    transition={{ duration: 0.5, delay: 0.2, type: "spring" }}
-                    className="text-4xl font-bold text-purple-600"
-                  >
-                    24/7
-                  </motion.div>
-                  <div className="text-sm text-gray-600 mt-2 font-medium">
-                    Guest Support
-                  </div>
-                </div>
-              </div>
             </motion.div>
             <motion.div
               variants={fadeInUp}

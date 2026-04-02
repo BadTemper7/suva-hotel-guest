@@ -751,6 +751,35 @@ export default function GuestRegister() {
                 "Create account"
               )}
             </button>
+
+            <p className="text-xs text-gray-500 leading-relaxed">
+              By creating an account, you consent to the collection, use, and
+              processing of your personal information in accordance with the
+              Philippines Data Privacy Act of 2012 (RA 10173){" "}
+              <a
+                href="https://lawphil.net/statutes/repacts/ra2012/ra_10173_2012.html"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-blue-600 hover:text-blue-500 underline underline-offset-2"
+              >
+                (view law)
+              </a>{" "}
+              and our{" "}
+              <Link
+                to="/privacy"
+                className="font-medium text-blue-600 hover:text-blue-500 underline underline-offset-2"
+              >
+                Privacy Policy
+              </Link>
+              . You also agree to our{" "}
+              <Link
+                to="/terms"
+                className="font-medium text-blue-600 hover:text-blue-500 underline underline-offset-2"
+              >
+                Terms &amp; Conditions
+              </Link>
+              .
+            </p>
           </form>
         </div>
 
