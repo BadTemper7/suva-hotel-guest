@@ -121,6 +121,14 @@ export default function GuestFooter() {
                 </li>
                 <li>
                   <Link
+                    to="/booking-policy-summary"
+                    className="text-gray-400 hover:text-blue-400 text-sm transition-colors"
+                  >
+                    Policies at a glance (booking)
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     to="/terms"
                     className="text-gray-400 hover:text-blue-400 text-sm transition-colors"
                   >

@@ -489,6 +489,15 @@ export default function Bookings() {
         <p className="text-gray-600 mt-2">
           View and manage your reservations at Suva's Place Resort
         </p>
+        <p className="text-sm text-gray-600 mt-3">
+          <Link
+            to="/booking-policy-summary"
+            className="text-blue-600 font-medium underline underline-offset-2 hover:text-blue-800"
+          >
+            Policies at a glance
+          </Link>{" "}
+          — resort and room rules summarized for your stay.
+        </p>
       </div>
 
       {/* Tabs */}

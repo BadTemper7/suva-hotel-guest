@@ -15,6 +15,9 @@ const GuestTerms = lazy(() => import("../pages/TermsConditions.jsx"));
 const GuestPrivacy = lazy(() => import("../pages/Privacy.jsx"));
 const GuestPolicy = lazy(() => import("../pages/GuestPolicy.jsx"));
 const RoomPolicy = lazy(() => import("../pages/RoomPolicy.jsx"));
+const BookingPolicySummary = lazy(
+  () => import("../pages/BookingPolicySummary.jsx"),
+);
 const GuestFAQ = lazy(() => import("../pages/FAQ.jsx"));
 // const GuestGallery = lazy(() => import("../pages/Gallery.jsx"));
 
@@ -73,6 +76,13 @@ export default [
       {
         path: "/room-policy",
         element: withLoader(RoomPolicy, "Loading room policy..."),
+      },
+      {
+        path: "/booking-policy-summary",
+        element: withLoader(
+          BookingPolicySummary,
+          "Loading policy summary...",
+        ),
       },
       { path: "/faq", element: withLoader(GuestFAQ, "Loading FAQ...") },
     ],

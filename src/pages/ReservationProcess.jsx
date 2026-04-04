@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiChevronLeft,
@@ -699,6 +699,16 @@ export default function GuestReservation() {
                 before confirming your reservation.
               </p>
             </div>
+            <p className="text-xs text-gray-600 mb-4 text-center">
+              <Link
+                to="/booking-policy-summary"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 font-medium underline underline-offset-2 hover:text-blue-800"
+              >
+                Resort &amp; room policy summary (for your stay)
+              </Link>
+            </p>
             <div className="space-y-3 mb-6">
               <div className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
@@ -848,6 +858,20 @@ export default function GuestReservation() {
             >
               <FiRefreshCw size={14} /> Reset
             </button>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+            <span className="font-medium text-amber-900">Booking essentials: </span>
+            <span className="text-amber-900/90">
+              IDs, deposits, pool hours, quiet hours, pets, smoking, and fines—
+            </span>
+            <Link
+              to="/booking-policy-summary"
+              className="font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900 ml-1"
+            >
+              read the policy summary
+            </Link>
+            .
           </div>
 
           {/* Progress bar and steps */}
