@@ -17,6 +17,7 @@ import {
   FiFileText,
   FiImage,
   FiExternalLink,
+  FiPlus,
 } from "react-icons/fi";
 import { useReservationStore } from "../stores/reservationStore";
 import { useGuestStore } from "../stores/guestStore";
@@ -217,11 +218,17 @@ function ReceiptCard({ receipt }) {
         <StatusBadge status={receipt.status} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <div>
           <p className="text-xs text-gray-500">Amount Paid</p>
           <p className="text-sm font-semibold text-green-600">
             {formatMoney(receipt.amountPaid)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Amount Received</p>
+          <p className="text-sm font-semibold text-blue-600">
+            {formatMoney(receipt.amountReceived ?? receipt.amountPaid)}
           </p>
         </div>
         <div>
@@ -470,6 +477,10 @@ export default function Bookings() {
     );
   }
 
+  const handleBookNow = () => {
+    navigate("/booking-process");
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
@@ -514,8 +525,14 @@ export default function Bookings() {
         </button>
       </div>
 
-      {/* Refresh Button */}
-      <div className="flex justify-end mb-6">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 mb-6">
+        <button
+          onClick={handleBookNow}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 transition"
+        >
+          <FiPlus size={16} /> Add Booking
+        </button>
         <button
           onClick={loadAllReservations}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
@@ -679,6 +696,24 @@ export default function Bookings() {
                                 {formatMoney(booking.billing.totalAmount)}
                               </p>
                             </div>
+                            {Number(booking.billing.discountAmount || 0) > 0 && (
+                              <div className="bg-gray-50 rounded-xl p-4">
+                                <p className="text-sm text-gray-500">
+                                  Discount
+                                  {booking.discount?.name
+                                    ? ` (${booking.discount.name})`
+                                    : ""}
+                                </p>
+                                <p className="text-2xl font-bold text-green-600">
+                                  -{formatMoney(booking.billing.discountAmount)}
+                                </p>
+                                {booking.discount?.discountPercent ? (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {booking.discount.discountPercent}% off
+                                  </p>
+                                ) : null}
+                              </div>
+                            )}
                             <div className="bg-gray-50 rounded-xl p-4">
                               <p className="text-sm text-gray-500">
                                 Amount Paid

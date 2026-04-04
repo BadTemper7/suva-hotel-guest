@@ -89,10 +89,6 @@ const validateName = (v) => {
   return /^[A-Za-z\s]+$/.test(v.trim());
 };
 
-const calculateMaxRooms = (adults) => {
-  return Math.max(1, Math.ceil(adults / 2));
-};
-
 function FieldError({ text, className = "" }) {
   if (!text) return null;
   return <div className={`mb-1 text-xs text-red-600 ${className}`}>{text}</div>;
@@ -146,11 +142,10 @@ function Pill({ active, done, onClick, stepCount, stepLabel }) {
 
   return (
     <button
-      className={`${baseCls} ${
-        !active && !done
+      className={`${baseCls} ${!active && !done
           ? "cursor-not-allowed"
           : "cursor-pointer hover:shadow-md hover:-translate-y-0.5"
-      }`}
+        }`}
       type="button"
       onClick={done || active ? onClick : null}
     >
@@ -241,7 +236,6 @@ export default function GuestReservation() {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [errors, setErrors] = useState({});
-  const [maxRooms, setMaxRooms] = useState(1);
 
   // Initialize and check authentication
   useEffect(() => {
@@ -291,42 +285,6 @@ export default function GuestReservation() {
       }));
     }
   }, [reservationFormData.checkIn]);
-  // Add this after the other useMemo hooks
-  const isStep3Valid = useMemo(() => {
-    if (!payment.paymentOption) return false;
-    if (!payment.paymentType) return false;
-    if (payment.amountPaid < 0) return false;
-    if (payment.amountReceived < 0) return false;
-    if (payment.amountPaid > payment.amountReceived) return false;
-
-    const selectedPaymentTypeData = paymentTypes.find(
-      (pt) => pt._id === payment.paymentType,
-    );
-    const requiresReceipt = selectedPaymentTypeData?.isReceipt === true;
-
-    if (requiresReceipt && !referenceNumber && !selectedReceiptImage) {
-      return false;
-    }
-
-    // Validate reference number length if provided
-    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
-      if (referenceNumber.length < 10) {
-        return false; // Too short
-      }
-    }
-
-    if (payment.discountId && !selectedDiscountImage) {
-      return false;
-    }
-
-    return true;
-  }, [
-    payment,
-    paymentTypes,
-    referenceNumber,
-    selectedReceiptImage,
-    selectedDiscountImage,
-  ]);
   const filteredAvailableItems = useMemo(() => {
     if (categoryFilter === "all") return availableRooms;
     return availableRooms.filter((item) => item.category === categoryFilter);
@@ -427,6 +385,47 @@ export default function GuestReservation() {
     return finalTotal;
   }, [payment.paymentOption, paymentOptions, finalTotal]);
 
+  const remainingBalance = useMemo(
+    () => Math.max(finalTotal - payment.amountPaid, 0),
+    [finalTotal, payment.amountPaid],
+  );
+
+  const isStep3Valid = useMemo(() => {
+    if (!payment.paymentOption) return false;
+    if (!payment.paymentType) return false;
+    if (payment.amountPaid <= 0) return false;
+    if (payment.amountPaid > finalTotal) return false;
+    if (payment.amountReceived < 0) return false;
+
+    const selectedPaymentTypeData = paymentTypes.find(
+      (pt) => pt._id === payment.paymentType,
+    );
+    const requiresReceipt = selectedPaymentTypeData?.isReceipt === true;
+
+    if (requiresReceipt && !referenceNumber && !selectedReceiptImage) {
+      return false;
+    }
+
+    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
+      if (referenceNumber.length < 10) {
+        return false;
+      }
+    }
+
+    if (payment.discountId && !selectedDiscountImage) {
+      return false;
+    }
+
+    return true;
+  }, [
+    payment,
+    finalTotal,
+    paymentTypes,
+    referenceNumber,
+    selectedReceiptImage,
+    selectedDiscountImage,
+  ]);
+
   const totalCapacity = useMemo(() => {
     return roomReservations.reduce((sum, roomRes) => {
       const room = availableRooms.find((r) => r._id === roomRes.roomId);
@@ -481,19 +480,8 @@ export default function GuestReservation() {
     const errors = {};
     if (roomReservations.length === 0)
       errors.rooms = "Select at least one room or cottage.";
-    if (roomReservations.length > maxRooms) {
-      errors.rooms = `You can only select maximum ${maxRooms} item(s) for ${reservationFormData.adults} adult(s).`;
-    }
     if (reservationFormData.adults > totalCapacity) {
       errors.capacity = `Capacity (${totalCapacity}) is not enough for adults (${reservationFormData.adults}).`;
-    }
-    const hasRooms = roomReservations.some((item) => item.category === "room");
-    const hasCottages = roomReservations.some(
-      (item) => item.category === "cottage",
-    );
-    if (hasRooms && hasCottages) {
-      errors.category =
-        "You cannot mix rooms and cottages in the same reservation.";
     }
     setErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -509,13 +497,12 @@ export default function GuestReservation() {
       errors.paymentOption = "Please select a payment option.";
     if (!payment.paymentType)
       errors.paymentType = "Please select a payment type.";
-    if (payment.amountPaid < 0)
-      errors.amountPaid = "Amount paid cannot be negative.";
+    if (payment.amountPaid <= 0)
+      errors.amountPaid = "Amount paid must be greater than zero.";
+    if (payment.amountPaid > finalTotal)
+      errors.amountPaid = "Amount paid cannot exceed total amount.";
     if (payment.amountReceived < 0)
       errors.amountReceived = "Amount received cannot be negative.";
-    if (payment.amountPaid > payment.amountReceived) {
-      errors.amountReceived = "Amount received must be at least amount paid.";
-    }
 
     const selectedPaymentTypeData = paymentTypes.find(
       (pt) => pt._id === payment.paymentType,
@@ -554,16 +541,6 @@ export default function GuestReservation() {
 
   const handleStep1Next = async () => {
     if (!validateStep1()) return;
-    const newMaxRooms = calculateMaxRooms(reservationFormData.adults);
-    if (roomReservations.length > newMaxRooms) {
-      toast.error(
-        `Selected items exceed limit of ${newMaxRooms} for ${reservationFormData.adults} adult(s).`,
-      );
-      setMaxRooms(newMaxRooms);
-      setStep(2);
-      return;
-    }
-    setMaxRooms(newMaxRooms);
     setLoadingRooms(true);
     try {
       const data = await fetchAvailableRooms({
@@ -587,21 +564,6 @@ export default function GuestReservation() {
   const goBack = () => setStep((prev) => Math.max(1, prev - 1));
 
   const addRoom = (item) => {
-    if (roomReservations.length > 0) {
-      const existingCategory = roomReservations[0].category;
-      if (existingCategory !== item.category) {
-        toast.error(
-          `Cannot mix rooms and cottages. You have ${existingCategory === "room" ? "rooms" : "cottages"} selected.`,
-        );
-        return;
-      }
-    }
-    if (roomReservations.length >= maxRooms) {
-      toast.error(
-        `Maximum ${maxRooms} item(s) allowed for ${reservationFormData.adults} adult(s).`,
-      );
-      return;
-    }
     setRoomReservations((prev) => [
       ...prev,
       {
@@ -712,7 +674,6 @@ export default function GuestReservation() {
     setReferenceNumber("");
     setAvailableRooms([]);
     setErrors({});
-    setMaxRooms(1);
   };
 
   const openImagePreview = (images, title) => {
@@ -1085,8 +1046,7 @@ export default function GuestReservation() {
                       error={errors.adults}
                     />
                     <div className="mt-1 text-xs text-gray-500">
-                      Maximum items allowed:{" "}
-                      {calculateMaxRooms(reservationFormData.adults)}
+                      You can select multiple rooms/cottages.
                     </div>
                   </div>
 
@@ -1148,7 +1108,6 @@ export default function GuestReservation() {
                     <span>
                       Selected:{" "}
                       <b className="text-gray-900">{roomReservations.length}</b>
-                      /<b>{maxRooms}</b>
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
@@ -1162,11 +1121,6 @@ export default function GuestReservation() {
                 }
               >
                 <div className="mb-4">
-                  {errors.category && (
-                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                      {errors.category}
-                    </div>
-                  )}
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       <FiFilter className="text-gray-400" />
@@ -1219,10 +1173,6 @@ export default function GuestReservation() {
                           <span className="font-medium text-gray-900">
                             {roomReservations.length}
                           </span>
-                          <span className="text-gray-400"> / </span>
-                          <span className="font-medium text-gray-600">
-                            {maxRooms}
-                          </span>
                           <span className="text-gray-400 ml-1">selected</span>
                         </div>
                       </div>
@@ -1246,11 +1196,10 @@ export default function GuestReservation() {
                           return (
                             <div
                               key={item._id}
-                              className={`rounded-xl border overflow-hidden transition-all duration-200 bg-white ${
-                                isSelected
+                              className={`rounded-xl border overflow-hidden transition-all duration-200 bg-white ${isSelected
                                   ? "border-[#0c2bfc] ring-2 ring-[#0c2bfc]/20"
                                   : "border-gray-200 hover:border-gray-300 hover:shadow-lg"
-                              }`}
+                                }`}
                             >
                               {/* Image Section */}
                               {firstImage && (
@@ -1278,11 +1227,10 @@ export default function GuestReservation() {
                                         {item.roomNumber}
                                       </div>
                                       <span
-                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                          isCottage
+                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${isCottage
                                             ? "bg-[#00af00]/10 text-[#00af00]"
                                             : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
-                                        }`}
+                                          }`}
                                       >
                                         {isCottage ? "Cottage" : "Room"}
                                       </span>
@@ -1320,14 +1268,7 @@ export default function GuestReservation() {
                                     <button
                                       type="button"
                                       onClick={() => addRoom(item)}
-                                      disabled={
-                                        roomReservations.length >= maxRooms
-                                      }
-                                      className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap ${
-                                        roomReservations.length >= maxRooms
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                          : "bg-[#0c2bfc] hover:bg-[#0a24d6] text-white"
-                                      }`}
+                                      className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap bg-[#0c2bfc] hover:bg-[#0a24d6] text-white"
                                     >
                                       Select
                                     </button>
@@ -1435,11 +1376,10 @@ export default function GuestReservation() {
                                                   }
                                                 }}
                                                 disabled={quantity === 0}
-                                                className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${
-                                                  quantity === 0
+                                                className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${quantity === 0
                                                     ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
                                                     : "border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 text-gray-700 hover:text-[#0c2bfc]"
-                                                }`}
+                                                  }`}
                                               >
                                                 <FiMinus size={14} />
                                               </button>
@@ -1656,8 +1596,16 @@ export default function GuestReservation() {
                       min="0"
                       step="0.01"
                       value={payment.amountPaid}
-                      disabled={true}
-                      className="mt-1 w-full h-11 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed px-4 text-sm outline-none"
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value) || 0;
+                        setPayment((prev) => ({
+                          ...prev,
+                          amountPaid: nextValue,
+                          amountReceived: nextValue,
+                        }));
+                        setFieldError("amountPaid", "");
+                      }}
+                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
@@ -1671,14 +1619,8 @@ export default function GuestReservation() {
                       min="0"
                       step="0.01"
                       value={payment.amountReceived}
-                      onChange={(e) => {
-                        setPayment({
-                          ...payment,
-                          amountReceived: Number(e.target.value),
-                        });
-                        setFieldError("amountReceived", "");
-                      }}
-                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.amountReceived ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      disabled={true}
+                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none bg-gray-100 text-gray-700 cursor-not-allowed ${errors.amountReceived ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
                     <FieldError text={errors.amountReceived} />
                   </div>
@@ -1957,14 +1899,14 @@ export default function GuestReservation() {
                     <span className="font-medium text-gray-900">
                       {reservationFormData.checkIn
                         ? new Date(reservationFormData.checkIn).toLocaleString(
-                            "en-PH",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )
+                          "en-PH",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
                         : "—"}
                     </span>
                   </div>
@@ -1973,14 +1915,14 @@ export default function GuestReservation() {
                     <span className="font-medium text-gray-900">
                       {reservationFormData.checkOut
                         ? new Date(reservationFormData.checkOut).toLocaleString(
-                            "en-PH",
-                            {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )
+                          "en-PH",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
                         : "—"}
                     </span>
                   </div>
@@ -2000,7 +1942,7 @@ export default function GuestReservation() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Items</span>
                     <span className="font-medium text-gray-900">
-                      {roomReservations.length} / {maxRooms}
+                      {roomReservations.length}
                     </span>
                   </div>
                 </div>
@@ -2107,8 +2049,26 @@ export default function GuestReservation() {
                                   : "Full Payment";
                               })()}
                             </span>
-                            <span className="font-medium text-gray-900">
-                              {formatMoney(amountDue)}
+                            <span
+                              className={`font-medium ${
+                                (() => {
+                                  const po = paymentOptions.find(
+                                    (p) => p._id === payment.paymentOption,
+                                  );
+                                  return po?.paymentType === "partial"
+                                    ? "text-[#00af00]"
+                                    : "text-gray-900";
+                                })()
+                              }`}
+                            >
+                              {(() => {
+                                const po = paymentOptions.find(
+                                  (p) => p._id === payment.paymentOption,
+                                );
+                                return po?.paymentType === "partial"
+                                  ? `-${formatMoney(amountDue)}`
+                                  : formatMoney(amountDue);
+                              })()}
                             </span>
                           </div>
                         )}
@@ -2124,24 +2084,12 @@ export default function GuestReservation() {
                             {formatMoney(payment.amountReceived)}
                           </span>
                         </div>
-                        {payment.amountReceived > payment.amountPaid && (
-                          <div className="flex justify-between text-[#00af00]">
-                            <span>Change</span>
-                            <span className="font-medium">
-                              {formatMoney(
-                                payment.amountReceived - payment.amountPaid,
-                              )}
-                            </span>
-                          </div>
-                        )}
-                        {payment.amountPaid < amountDue && (
-                          <div className="flex justify-between text-red-600">
-                            <span>Balance Due</span>
-                            <span className="font-medium">
-                              {formatMoney(amountDue - payment.amountPaid)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-red-600">
+                          <span>Remaining Balance</span>
+                          <span className="font-medium">
+                            {formatMoney(remainingBalance)}
+                          </span>
+                        </div>
                       </div>
                     </>
                   )}
@@ -2204,12 +2152,8 @@ export default function GuestReservation() {
             <button
               type="button"
               onClick={handleStep2Next}
-              disabled={
-                roomReservations.length === 0 ||
-                roomReservations.length > maxRooms ||
-                errors.category
-              }
-              className={`h-11 px-5 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2 transition-all duration-200 ${roomReservations.length === 0 || roomReservations.length > maxRooms || errors.category ? "bg-[#0c2bfc]/50 cursor-not-allowed" : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-md"}`}
+              disabled={roomReservations.length === 0}
+              className={`h-11 px-5 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2 transition-all duration-200 ${roomReservations.length === 0 ? "bg-[#0c2bfc]/50 cursor-not-allowed" : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-md"}`}
             >
               Next <FiChevronRight />
             </button>
@@ -2220,11 +2164,10 @@ export default function GuestReservation() {
               type="button"
               onClick={handleShowConfirmModal}
               disabled={loading || !isStep3Valid}
-              className={`h-11 px-5 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2 transition-all duration-200 ${
-                loading || !isStep3Valid
+              className={`h-11 px-5 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2 transition-all duration-200 ${loading || !isStep3Valid
                   ? "bg-[#00af00]/50 cursor-not-allowed"
                   : "bg-[#00af00] hover:bg-[#009500] hover:shadow-md"
-              }`}
+                }`}
             >
               {loading ? "Creating..." : "Complete Reservation"}
             </button>
