@@ -1,12 +1,12 @@
 // src/pages/guest/Rooms.jsx
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
 import { useGuestStore } from "../stores/guestStore";
 import { useReservationStore } from "../stores/reservationStore";
+import ListingImageCarousel from "../components/listing/ListingImageCarousel.jsx";
 
 export default function GuestRooms() {
-  const navigate = useNavigate();
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const { isAuthenticated, checkAuth, initialize, initialized } =
     useGuestStore();
@@ -301,22 +301,15 @@ export default function GuestRooms() {
                 key={room._id}
                 className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                {/* Room Image */}
-                <div className="relative h-64 overflow-hidden">
-                  {room.images && room.images.length > 0 ? (
-                    <img
-                      src={room.images[0].url}
-                      alt={room.roomType?.name || "Room"}
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-200 to-green-200 flex items-center justify-center">
-                      <span className="text-4xl">🛏️</span>
-                    </div>
-                  )}
-
-                  {/* Room Type Badge */}
-                  <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+                {/* Room images — carousel + full-screen preview */}
+                <div className="relative h-64 overflow-hidden bg-gray-100">
+                  <ListingImageCarousel
+                    images={room.images}
+                    title={`${room.roomType?.name || "Room"} ${room.roomNumber}`}
+                    variant="room"
+                    className="h-full"
+                  />
+                  <div className="pointer-events-none absolute top-4 right-4 z-20 bg-blue-600 text-white px-3 py-1 rounded-full text-sm shadow-md">
                     {room.roomType?.name || "Standard"}
                   </div>
                 </div>

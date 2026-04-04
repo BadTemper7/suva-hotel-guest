@@ -1,12 +1,12 @@
 // src/pages/guest/Cottages.jsx
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
 import { useGuestStore } from "../stores/guestStore";
 import { useReservationStore } from "../stores/reservationStore";
+import ListingImageCarousel from "../components/listing/ListingImageCarousel.jsx";
 
 export default function GuestCottages() {
-  const navigate = useNavigate();
   const { rooms, loading, error, fetchRooms } = useRoomStore();
   const { isAuthenticated, checkAuth, initialize, initialized } =
     useGuestStore();
@@ -307,22 +307,15 @@ export default function GuestCottages() {
                 key={cottage._id}
                 className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                {/* Cottage Image */}
-                <div className="relative h-64 overflow-hidden">
-                  {cottage.images && cottage.images.length > 0 ? (
-                    <img
-                      src={cottage.images[0].url}
-                      alt={`Cottage ${cottage.roomNumber}`}
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-green-200 to-blue-200 flex items-center justify-center">
-                      <span className="text-4xl">🏡</span>
-                    </div>
-                  )}
-
-                  {/* Cottage Type Badge */}
-                  <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm">
+                {/* Cottage images — carousel + full-screen preview */}
+                <div className="relative h-64 overflow-hidden bg-gray-100">
+                  <ListingImageCarousel
+                    images={cottage.images}
+                    title={`Cottage ${cottage.roomNumber}`}
+                    variant="cottage"
+                    className="h-full"
+                  />
+                  <div className="pointer-events-none absolute top-4 right-4 z-20 bg-green-600 text-white px-3 py-1 rounded-full text-sm shadow-md">
                     Cottage
                   </div>
                 </div>

@@ -61,10 +61,7 @@ export default function GuestLogin() {
               className="scale-110"
             />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account to continue
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">Sign in to your account</h2>
         </div>
 
         {/* Login Card */}

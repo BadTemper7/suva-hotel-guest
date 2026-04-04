@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { useRoutes } from "react-router-dom";
 import routes from "./routes.jsx";
+import ScrollToTop from "./ScrollToTop.jsx";
 import { useGuestStore } from "../stores/guestStore.js";
 
 export default function App() {
@@ -13,5 +14,10 @@ export default function App() {
     initialize();
   }, [initialize]);
 
-  return <>{element}</>;
+  return (
+    <>
+      <ScrollToTop />
+      {element}
+    </>
+  );
 }
