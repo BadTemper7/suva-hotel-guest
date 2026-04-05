@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useGuestStore } from "../stores/guestStore";
 import Logo from "../components/layout/Logo.jsx";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 export default function GuestRegister() {
   const navigate = useNavigate();
   const {
     registerGuest,
     findGuestByEmail,
-    upgradeToAccount,
     authLoading,
     authError,
     clearError,
@@ -28,8 +27,8 @@ export default function GuestRegister() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [existingGuest, setExistingGuest] = useState(null);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  /** null | "registered" (has login) | "walk-in" (email on file, no public self-serve link) */
+  const [emailConflict, setEmailConflict] = useState(null);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -79,16 +78,18 @@ export default function GuestRegister() {
   // Debounced email check
   useEffect(() => {
     const checkEmail = async () => {
-      if (!formData.email || formData.email.length < 5) return;
+      if (!formData.email || formData.email.length < 5) {
+        setEmailConflict(null);
+        return;
+      }
 
       setIsCheckingEmail(true);
       try {
         const result = await findGuestByEmail(formData.email);
-        if (result.exists && result.guest && !result.hasAccount) {
-          // Existing walk-in guest without account
-          setExistingGuest(result.guest);
+        if (result.exists && result.guest) {
+          setEmailConflict(result.hasAccount ? "registered" : "walk-in");
         } else {
-          setExistingGuest(null);
+          setEmailConflict(null);
         }
       } catch (error) {
         console.error("Error checking email:", error);
@@ -110,8 +111,7 @@ export default function GuestRegister() {
     if (message.text) setMessage({ type: "", text: "" });
     // Reset upgrade modal when email changes
     if (e.target.name === "email") {
-      setShowUpgradeModal(false);
-      setExistingGuest(null);
+      setEmailConflict(null);
     }
   };
 
@@ -205,10 +205,14 @@ export default function GuestRegister() {
       return;
     }
 
-    // Check if this email belongs to an existing walk-in guest
-    if (existingGuest) {
-      // Show upgrade modal instead of creating new account
-      setShowUpgradeModal(true);
+    if (emailConflict) {
+      setMessage({
+        type: "error",
+        text:
+          emailConflict === "registered"
+            ? "This email already has an account. Sign in instead."
+            : "This email is already associated with a guest profile. Use a different email or contact the property for assistance.",
+      });
       setSubmitting(false);
       return;
     }
@@ -265,63 +269,6 @@ export default function GuestRegister() {
       });
     }
     setSubmitting(false);
-  };
-
-  const handleUpgradeAccount = async () => {
-    if (!existingGuest) return;
-
-    setSubmitting(true);
-    setMessage({ type: "", text: "" });
-
-    // Validate password for upgrade
-    const passwordTrimmed = formData.password?.trim();
-    if (!passwordTrimmed) {
-      setMessage({ type: "error", text: "Password cannot be empty" });
-      setSubmitting(false);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setMessage({ type: "error", text: "Passwords do not match" });
-      setSubmitting(false);
-      return;
-    }
-
-    // Validate password strength
-    const isValid = validatePassword(passwordTrimmed);
-    if (!isValid) {
-      setMessage({
-        type: "error",
-        text: "Password does not meet all requirements. Please check the requirements below.",
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      const result = await upgradeToAccount(
-        existingGuest._id,
-        formData.email.trim().toLowerCase(),
-        passwordTrimmed,
-      );
-
-      if (result.success) {
-        setShowUpgradeModal(false);
-        navigate("/");
-      } else {
-        setMessage({
-          type: "error",
-          text: result.error || "Failed to upgrade account",
-        });
-      }
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: error.message || "Failed to upgrade account",
-      });
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   return (
@@ -416,13 +363,22 @@ export default function GuestRegister() {
               </div>
             )}
 
-            {/* Walk-in Guest Warning */}
-            {existingGuest && !showUpgradeModal && (
-              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
+            {emailConflict && (
+              <div
+                className={`border-l-4 p-4 rounded-lg ${
+                  emailConflict === "registered"
+                    ? "bg-red-50 border-red-500"
+                    : "bg-amber-50 border-amber-500"
+                }`}
+              >
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg
-                      className="h-5 w-5 text-amber-400"
+                      className={`h-5 w-5 ${
+                        emailConflict === "registered"
+                          ? "text-red-400"
+                          : "text-amber-400"
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -431,21 +387,39 @@ export default function GuestRegister() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                       />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-amber-700">
-                      This email is already associated with a walk-in guest:{" "}
-                      <strong>
-                        {existingGuest.firstName} {existingGuest.lastName}
-                      </strong>
-                    </p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      You can upgrade this existing profile to a registered
-                      account by setting a password.
-                    </p>
+                    {emailConflict === "registered" ? (
+                      <>
+                        <p className="text-sm text-red-800 font-medium">
+                          This email is already registered.
+                        </p>
+                        <p className="text-sm text-red-700 mt-1">
+                          Sign in with this email, or use a different address to
+                          create a new account.
+                        </p>
+                        <Link
+                          to="/login"
+                          className="inline-block mt-2 text-sm font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
+                        >
+                          Go to sign in
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-amber-800 font-medium">
+                          This email is already associated with a guest profile.
+                        </p>
+                        <p className="text-sm text-amber-700 mt-1">
+                          Registration cannot use this address. Try a different
+                          email or contact the property if you need help with
+                          your profile.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -508,8 +482,10 @@ export default function GuestRegister() {
                 value={formData.email}
                 onChange={handleChange}
                 className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                  existingGuest
-                    ? "border-amber-400 bg-amber-50"
+                  emailConflict
+                    ? emailConflict === "registered"
+                      ? "border-red-400 bg-red-50/50"
+                      : "border-amber-400 bg-amber-50"
                     : "border-gray-300"
                 }`}
                 placeholder="you@example.com"
@@ -717,7 +693,12 @@ export default function GuestRegister() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting || authLoading || isCheckingEmail}
+              disabled={
+                submitting ||
+                authLoading ||
+                isCheckingEmail ||
+                Boolean(emailConflict)
+              }
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
             >
               {submitting || authLoading ? (
@@ -741,12 +722,8 @@ export default function GuestRegister() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  {existingGuest
-                    ? "Upgrading account..."
-                    : "Creating account..."}
+                  Creating account...
                 </div>
-              ) : existingGuest ? (
-                "Upgrade to Account"
               ) : (
                 "Create account"
               )}
@@ -797,119 +774,6 @@ export default function GuestRegister() {
         </div>
       </div>
 
-      {/* Upgrade Confirmation Modal */}
-      <AnimatePresence>
-        {showUpgradeModal && existingGuest && (
-          <motion.div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowUpgradeModal(false)}
-          >
-            <motion.div
-              className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600" />
-                <div className="relative px-6 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 rounded-xl bg-white/20 blur-sm" />
-                      <div className="relative p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
-                        <svg
-                          className="w-6 h-6 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 15v2m-6-4h12a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2zm10-4V6a4 4 0 00-8 0v4h8z"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white">
-                        Upgrade Existing Profile
-                      </h3>
-                      <p className="text-sm text-white/80 mt-0.5">
-                        Create an account from your walk-in profile
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-6">
-                <div className="mb-6">
-                  <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                    <p className="text-sm text-gray-700">
-                      An existing walk-in profile was found for{" "}
-                      <strong className="text-blue-600">
-                        {formData.email}
-                      </strong>
-                    </p>
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                      <p className="text-sm">
-                        <span className="font-medium text-gray-700">Name:</span>{" "}
-                        {existingGuest.firstName} {existingGuest.lastName}
-                      </p>
-                      <p className="text-sm mt-1">
-                        <span className="font-medium text-gray-700">
-                          Contact:
-                        </span>{" "}
-                        {existingGuest.contactNumber}
-                      </p>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-3">
-                      By upgrading, you'll be able to log in with your email and
-                      password, and all your past and future reservations will
-                      be linked to this account.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowUpgradeModal(false)}
-                    className="flex-1 h-11 px-4 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 hover:text-gray-900 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleUpgradeAccount}
-                    disabled={submitting}
-                    className="flex-1 h-11 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Upgrading...
-                      </div>
-                    ) : (
-                      "Upgrade Account"
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       {showVerificationSuccess && (
         <motion.div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"

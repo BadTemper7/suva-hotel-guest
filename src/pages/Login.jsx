@@ -1,12 +1,15 @@
 // src/pages/guest/Login.jsx
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useGuestStore } from "../stores/guestStore";
 import Logo from "../components/layout/Logo.jsx";
 import VerificationNotice from "../components/VerificationNotice";
+import { safeReturnPath } from "../app/returnPath.js";
 
 export default function GuestLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = safeReturnPath(location.state?.from);
   const { loginGuest, authLoading, authError, clearError, isAuthenticated } =
     useGuestStore();
   const [formData, setFormData] = useState({
@@ -18,12 +21,11 @@ export default function GuestLogin() {
   const [requiresVerification, setRequiresVerification] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/");
+      navigate(returnTo || "/", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, returnTo]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,7 +42,7 @@ export default function GuestLogin() {
     const result = await loginGuest(formData.email, formData.password);
 
     if (result.success) {
-      navigate("/");
+      navigate(returnTo || "/");
     } else if (result.requiresVerification) {
       // Show verification notice
       setRequiresVerification(true);

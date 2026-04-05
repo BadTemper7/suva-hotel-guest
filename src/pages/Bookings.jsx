@@ -1,6 +1,6 @@
 // src/pages/guest/Bookings.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiCalendar,
@@ -308,6 +308,7 @@ function ReceiptCard({ receipt }) {
 // Main Bookings Component
 export default function Bookings() {
   const navigate = useNavigate();
+  const loc = useLocation();
   const { currentGuest, isAuthenticated, initialize } = useGuestStore();
   const {
     guestReservations,
@@ -328,12 +329,14 @@ export default function Bookings() {
 
   useEffect(() => {
     if (!isAuthenticated || !currentGuest) {
-      navigate("/login");
+      navigate("/login", {
+        state: { from: `${loc.pathname}${loc.search}` },
+      });
       return;
     }
 
     loadAllReservations();
-  }, [isAuthenticated, currentGuest, navigate]);
+  }, [isAuthenticated, currentGuest, navigate, loc.pathname, loc.search]);
 
   const loadAllReservations = async () => {
     if (!currentGuest?._id) return;

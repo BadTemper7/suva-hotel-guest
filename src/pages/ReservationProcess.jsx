@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiChevronLeft,
@@ -179,6 +179,7 @@ function SummaryCard({ title, children, className = "" }) {
 
 export default function GuestReservation() {
   const navigate = useNavigate();
+  const loc = useLocation();
   const { currentGuest, isAuthenticated, initialize } = useGuestStore();
   const [step, setStep] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -245,7 +246,9 @@ export default function GuestReservation() {
   useEffect(() => {
     if (!isAuthenticated || !currentGuest) {
       toast.error("Please login to make a reservation");
-      navigate("/login");
+      navigate("/login", {
+        state: { from: `${loc.pathname}${loc.search}` },
+      });
       return;
     }
 
@@ -271,6 +274,8 @@ export default function GuestReservation() {
     isAuthenticated,
     currentGuest,
     navigate,
+    loc.pathname,
+    loc.search,
   ]);
 
   // Update check-out when check-in changes

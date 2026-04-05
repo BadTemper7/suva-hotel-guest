@@ -1,10 +1,11 @@
 // src/pages/guest/Profile.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useGuestStore } from "../stores/guestStore";
 
 export default function GuestProfile() {
   const navigate = useNavigate();
+  const loc = useLocation();
   const {
     currentGuest,
     isAuthenticated,
@@ -42,7 +43,9 @@ export default function GuestProfile() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate("/login", {
+        state: { from: `${loc.pathname}${loc.search}` },
+      });
       return;
     }
 
@@ -54,7 +57,7 @@ export default function GuestProfile() {
         email: currentGuest.email || "",
       });
     }
-  }, [currentGuest, isAuthenticated, navigate]);
+  }, [currentGuest, isAuthenticated, navigate, loc.pathname, loc.search]);
 
   // Validate password strength
   const validatePassword = (password) => {
