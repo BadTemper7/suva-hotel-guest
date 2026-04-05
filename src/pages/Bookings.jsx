@@ -359,8 +359,15 @@ export default function Bookings() {
   const handleCancelReservation = async (reservationId) => {
     if (!confirm("Are you sure you want to cancel this reservation?")) return;
 
+    const reason = window.prompt("Please provide a reason for cancellation:");
+    if (reason === null) return; // user cancelled prompt
+    if (!String(reason).trim()) {
+      toast.error("Cancellation reason is required.");
+      return;
+    }
+
     try {
-      await updateReservationStatus(reservationId, "cancelled");
+      await updateReservationStatus(reservationId, "cancelled", reason.trim());
       toast.success("Reservation cancelled successfully");
       await loadAllReservations();
     } catch (err) {
@@ -699,6 +706,9 @@ export default function Bookings() {
                           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                             <PesoIcon /> Payment Summary
                           </h3>
+                          <div className="mb-4 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                            Non-VAT: All billing amounts are VAT-exempt.
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-gray-50 rounded-xl p-4">
                               <p className="text-sm text-gray-500">

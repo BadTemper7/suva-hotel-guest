@@ -183,6 +183,7 @@ export default function GuestReservation() {
   const { currentGuest, isAuthenticated, initialize } = useGuestStore();
   const [step, setStep] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [fitCapacityOnly, setFitCapacityOnly] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -291,9 +292,24 @@ export default function GuestReservation() {
     }
   }, [reservationFormData.checkIn]);
   const filteredAvailableItems = useMemo(() => {
-    if (categoryFilter === "all") return availableRooms;
-    return availableRooms.filter((item) => item.category === categoryFilter);
-  }, [availableRooms, categoryFilter]);
+    const requiredGuests =
+      Number(reservationFormData.adults || 0) +
+      Number(reservationFormData.children || 0);
+
+    return availableRooms.filter((item) => {
+      const matchesCategory =
+        categoryFilter === "all" ? true : item.category === categoryFilter;
+      if (!matchesCategory) return false;
+      if (!fitCapacityOnly) return true;
+      return Number(item?.capacity || 0) >= requiredGuests;
+    });
+  }, [
+    availableRooms,
+    categoryFilter,
+    fitCapacityOnly,
+    reservationFormData.adults,
+    reservationFormData.children,
+  ]);
 
   const roomCount = availableRooms.filter(
     (item) => item.category === "room",
@@ -407,14 +423,8 @@ export default function GuestReservation() {
     );
     const requiresReceipt = selectedPaymentTypeData?.isReceipt === true;
 
-    if (requiresReceipt && !referenceNumber && !selectedReceiptImage) {
+    if (requiresReceipt && !selectedReceiptImage) {
       return false;
-    }
-
-    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
-      if (referenceNumber.length < 10) {
-        return false;
-      }
     }
 
     if (payment.discountId && !selectedDiscountImage) {
@@ -426,17 +436,54 @@ export default function GuestReservation() {
     payment,
     finalTotal,
     paymentTypes,
-    referenceNumber,
     selectedReceiptImage,
     selectedDiscountImage,
   ]);
 
-  const totalCapacity = useMemo(() => {
-    return roomReservations.reduce((sum, roomRes) => {
-      const room = availableRooms.find((r) => r._id === roomRes.roomId);
-      return sum + (room?.capacity || 0);
-    }, 0);
-  }, [roomReservations, availableRooms]);
+  const { roomCapacity, cottageCapacity, totalCapacity } = useMemo(() => {
+    return roomReservations.reduce(
+      (acc, roomRes) => {
+        const capacity = Number(roomRes?.capacity || 0);
+        if (roomRes?.category === "cottage") {
+          acc.cottageCapacity += capacity;
+        } else {
+          acc.roomCapacity += capacity;
+        }
+        acc.totalCapacity += capacity;
+        return acc;
+      },
+      { roomCapacity: 0, cottageCapacity: 0, totalCapacity: 0 },
+    );
+  }, [roomReservations]);
+  const requiredCapacity =
+    Number(reservationFormData.adults || 0) +
+    Number(reservationFormData.children || 0);
+  const hasRoomsSelected = roomReservations.some(
+    (roomRes) => roomRes?.category !== "cottage",
+  );
+  const hasCottagesSelected = roomReservations.some(
+    (roomRes) => roomRes?.category === "cottage",
+  );
+  const roomsSatisfyCapacity = roomCapacity >= requiredCapacity;
+  const cottagesSatisfyCapacity = cottageCapacity >= requiredCapacity;
+  const capacityMet =
+    roomReservations.length > 0 &&
+    (hasRoomsSelected ? roomsSatisfyCapacity : true) &&
+    (hasCottagesSelected ? cottagesSatisfyCapacity : true);
+  const capacityMetBy =
+    roomsSatisfyCapacity && cottagesSatisfyCapacity
+      ? "rooms and cottages"
+      : roomsSatisfyCapacity
+        ? "rooms"
+        : cottagesSatisfyCapacity
+          ? "cottages"
+          : "";
+  const remainingRoomCapacityNeeded = hasRoomsSelected
+    ? Math.max(requiredCapacity - roomCapacity, 0)
+    : 0;
+  const remainingCottageCapacityNeeded = hasCottagesSelected
+    ? Math.max(requiredCapacity - cottageCapacity, 0)
+    : 0;
 
   const checkOutMin = useMemo(() => {
     if (!reservationFormData.checkIn)
@@ -485,8 +532,20 @@ export default function GuestReservation() {
     const errors = {};
     if (roomReservations.length === 0)
       errors.rooms = "Select at least one room or cottage.";
-    if (reservationFormData.adults > totalCapacity) {
-      errors.capacity = `Capacity (${totalCapacity}) is not enough for adults (${reservationFormData.adults}).`;
+    if (roomReservations.length > 0 && !capacityMet) {
+      const requirements = [];
+      if (hasRoomsSelected && !roomsSatisfyCapacity) {
+        requirements.push(
+          `add ${remainingRoomCapacityNeeded} more room capacity`,
+        );
+      }
+      if (hasCottagesSelected && !cottagesSatisfyCapacity) {
+        requirements.push(
+          `add ${remainingCottageCapacityNeeded} more cottage capacity`,
+        );
+      }
+
+      errors.capacity = `Capacity requirement not met for ${requiredCapacity} guests. Please ${requirements.join(" and ")}.`;
     }
     setErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -514,19 +573,8 @@ export default function GuestReservation() {
     );
     const requiresReceipt = selectedPaymentTypeData?.isReceipt === true;
 
-    if (requiresReceipt && !referenceNumber && !selectedReceiptImage) {
-      errors.receipt = "Either reference number OR receipt image is required.";
-    }
-
-    // Validate reference number length if provided
-    if (requiresReceipt && referenceNumber && referenceNumber.length > 0) {
-      if (referenceNumber.length < 10) {
-        errors.receipt = "Reference number must be at least 10 digits.";
-      }
-      // Optional: Add maximum length validation
-      if (referenceNumber.length > 50) {
-        errors.receipt = "Reference number cannot exceed 50 digits.";
-      }
+    if (requiresReceipt && !selectedReceiptImage) {
+      errors.receipt = "Receipt image is required for this payment type.";
     }
 
     if (payment.discountId && !selectedDiscountImage) {
@@ -1128,9 +1176,9 @@ export default function GuestReservation() {
                 right={
                   <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                     <span>
-                      Adults:{" "}
+                      Guests:{" "}
                       <b className="text-gray-900">
-                        {reservationFormData.adults}
+                        {requiredCapacity}
                       </b>
                     </span>
                     <span className="text-gray-300">•</span>
@@ -1140,7 +1188,12 @@ export default function GuestReservation() {
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
-                      Capacity: <b className="text-gray-900">{totalCapacity}</b>
+                      Room Cap: <b className="text-gray-900">{roomCapacity}</b>
+                    </span>
+                    <span className="text-gray-300">•</span>
+                    <span>
+                      Cottage Cap:{" "}
+                      <b className="text-gray-900">{cottageCapacity}</b>
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
@@ -1179,6 +1232,15 @@ export default function GuestReservation() {
                         {cottageCount})
                       </button>
                     </div>
+                    <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={fitCapacityOnly}
+                        onChange={(e) => setFitCapacityOnly(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/20"
+                      />
+                      Fit all guests only
+                    </label>
                   </div>
                 </div>
 
@@ -1204,6 +1266,26 @@ export default function GuestReservation() {
                           </span>
                           <span className="text-gray-400 ml-1">selected</span>
                         </div>
+                      </div>
+                      <div className="mb-2 text-xs text-gray-600">
+                        {capacityMet ? (
+                          <span className="font-medium text-[#00af00]">
+                            Capacity requirement met by {capacityMetBy}.
+                          </span>
+                        ) : (
+                          <span>
+                            Remaining needed - Rooms:{" "}
+                            <b className="text-gray-900">
+                              {hasRoomsSelected ? remainingRoomCapacityNeeded : 0}
+                            </b>
+                            , Cottages:{" "}
+                            <b className="text-gray-900">
+                              {hasCottagesSelected
+                                ? remainingCottageCapacityNeeded
+                                : 0}
+                            </b>
+                          </span>
+                        )}
                       </div>
                       <FieldError text={errors.rooms} />
                       <FieldError text={errors.capacity} />
@@ -1728,83 +1810,7 @@ export default function GuestReservation() {
                             Receipt Information *
                           </div>
                           <div className="text-xs text-gray-500 mb-3">
-                            Please provide either a reference number OR upload a
-                            receipt image.
-                          </div>
-                        </div>
-
-                        {/* Reference Number Field */}
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Reference Number
-                            <span className="text-xs text-gray-500 ml-2">
-                              (Optional if image uploaded)
-                            </span>
-                          </label>
-                          <input
-                            type="text"
-                            value={referenceNumber}
-                            onChange={(e) => {
-                              // Allow only numbers
-                              const value = e.target.value.replace(
-                                /[^0-9]/g,
-                                "",
-                              );
-
-                              // Apply minimum and maximum length limits (adjust as needed)
-                              if (value.length <= 50) {
-                                // Maximum limit of 50 characters
-                                setReferenceNumber(value);
-                                setFieldError("receipt", "");
-                                if (value && selectedReceiptImage) {
-                                  setFieldError("receipt", "");
-                                }
-
-                                // Optional: Show warning for minimum length (e.g., 10 digits)
-                                if (value.length > 0 && value.length < 10) {
-                                  setFieldError(
-                                    "receipt",
-                                    "Reference number should be at least 10 digits",
-                                  );
-                                } else if (
-                                  value.length > 0 &&
-                                  value.length >= 10
-                                ) {
-                                  setFieldError("receipt", "");
-                                }
-                              }
-                            }}
-                            onBlur={() => {
-                              // Validate minimum length on blur
-                              if (
-                                referenceNumber &&
-                                referenceNumber.length > 0 &&
-                                referenceNumber.length < 10
-                              ) {
-                                setFieldError(
-                                  "receipt",
-                                  "Reference number must be at least 10 digits",
-                                );
-                              }
-                            }}
-                            placeholder="e.g., 1234567890 (numbers only)"
-                            maxLength={50}
-                            className="w-full h-11 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200"
-                          />
-                          <div className="mt-1 text-xs text-gray-500">
-                            Numbers only • Minimum 10 digits • Maximum 50 digits
-                          </div>
-                        </div>
-
-                        {/* OR Divider */}
-                        <div className="relative my-4">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-200"></div>
-                          </div>
-                          <div className="relative flex justify-center text-xs">
-                            <span className="px-2 bg-white text-gray-500">
-                              OR
-                            </span>
+                            Upload receipt image (required).
                           </div>
                         </div>
 
@@ -1814,7 +1820,7 @@ export default function GuestReservation() {
                             <label className="text-sm font-medium text-gray-700">
                               Receipt Image
                               <span className="text-xs text-gray-500 ml-2">
-                                (Optional if reference number provided)
+                                (Required)
                               </span>
                             </label>
                             <div className="flex items-center gap-2">
@@ -1878,34 +1884,22 @@ export default function GuestReservation() {
                                 className="mx-auto mb-3 text-gray-400"
                                 size={28}
                               />
-                              <div>Upload receipt image (optional)</div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {referenceNumber
-                                  ? "Reference number provided, image is optional"
-                                  : "Upload image or provide reference number"}
-                              </div>
+                              <div>Upload receipt image (required)</div>
                             </div>
                           )}
                         </div>
 
                         {/* Validation Status */}
                         <div className="mt-3 text-xs">
-                          {referenceNumber || receiptImagePreview ? (
+                          {receiptImagePreview ? (
                             <div className="text-[#00af00] flex items-center gap-1">
                               <FiCheckCircle size={12} />
-                              {referenceNumber && receiptImagePreview
-                                ? "✓ Both reference number and image provided"
-                                : referenceNumber
-                                  ? referenceNumber.length < 10
-                                    ? "⚠️ Reference number too short (minimum 10 digits)"
-                                    : "✓ Reference number provided"
-                                  : "✓ Receipt image uploaded"}
+                              ✓ Receipt image uploaded
                             </div>
                           ) : (
                             <div className="text-amber-600 flex items-center gap-1">
                               <FiAlertCircle size={12} />
-                              Please provide either a reference number or upload
-                              a receipt image
+                              Please upload a receipt image
                             </div>
                           )}
                         </div>
@@ -2058,6 +2052,9 @@ export default function GuestReservation() {
                   {step === 3 && (
                     <>
                       <div className="border-t border-gray-200 pt-4"></div>
+                      <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                        Non-VAT: All billing amounts are VAT-exempt.
+                      </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-500">Total Amount</span>
@@ -2124,12 +2121,19 @@ export default function GuestReservation() {
                   )}
                 </div>
               </div>
-              {step === 2 && reservationFormData.adults > totalCapacity && (
+              {step === 2 && !capacityMet && (
                 <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800">
                   <div className="font-medium">Capacity Warning</div>
                   <div className="mt-1">
-                    Selected capacity ({totalCapacity}) is not enough for{" "}
-                    {reservationFormData.adults} adults.
+                    Rooms and cottages are checked separately for {requiredCapacity}{" "}
+                    guests. Rooms capacity: {roomCapacity}, cottages capacity:{" "}
+                    {cottageCapacity}.{" "}
+                    {hasRoomsSelected && !roomsSatisfyCapacity
+                      ? `Add ${remainingRoomCapacityNeeded} more room capacity. `
+                      : ""}
+                    {hasCottagesSelected && !cottagesSatisfyCapacity
+                      ? `Add ${remainingCottageCapacityNeeded} more cottage capacity.`
+                      : ""}
                   </div>
                 </div>
               )}
