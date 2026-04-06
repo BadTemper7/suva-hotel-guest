@@ -190,10 +190,10 @@ export default function GuestHeader() {
             ) : (
               <>
                 <Link
-                  to="/login"
+                  to="/register"
                   className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  Sign In
+                  Sign Up
                 </Link>
                 <Link
                   to="/register"
@@ -301,10 +301,10 @@ export default function GuestHeader() {
                 ) : (
                   <div className="space-y-2">
                     <Link
-                      to="/login"
+                      to="/register"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                     >
-                      Sign In
+                      Sign Up
                     </Link>
                     <Link
                       to="/register"
