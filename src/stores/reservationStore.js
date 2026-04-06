@@ -232,6 +232,7 @@ export const useReservationStore = create((set, get) => ({
     rooms = [],
     payment,
     discountImageFile = null,
+    discountImageFiles = [],
     receiptData = null,
     guestId = null,
   }) => {
@@ -380,17 +381,36 @@ export const useReservationStore = create((set, get) => ({
       }
 
       // Step 5: Upload discount image if exists
-      if (reservationData.discountId && discountImageFile) {
-        const discountFormData = new FormData();
-        discountFormData.append("image", discountImageFile);
-        discountFormData.append("discountId", reservationData.discountId);
-        discountFormData.append("billingId", billingId);
-        discountFormData.append("status", "confirmed");
-
-        await fetch(`${API}/discount-images`, {
-          method: "POST",
-          body: discountFormData,
-        });
+      const filesToUpload = Array.isArray(discountImageFiles)
+        ? discountImageFiles.filter(Boolean)
+        : [];
+      if (reservationData.discountId) {
+        if (filesToUpload.length > 0) {
+          for (const file of filesToUpload) {
+            const discountFormData = new FormData();
+            discountFormData.append("image", file);
+            discountFormData.append("discountId", reservationData.discountId);
+            discountFormData.append("billingId", billingId);
+            discountFormData.append("status", "confirmed");
+            const resDiscount = await fetch(`${API}/discount-images`, {
+              method: "POST",
+              body: discountFormData,
+            });
+            await safeJson(resDiscount);
+          }
+        } else if (discountImageFile) {
+          // Backward compatibility with previous single-file callers.
+          const discountFormData = new FormData();
+          discountFormData.append("image", discountImageFile);
+          discountFormData.append("discountId", reservationData.discountId);
+          discountFormData.append("billingId", billingId);
+          discountFormData.append("status", "confirmed");
+          const resDiscount = await fetch(`${API}/discount-images`, {
+            method: "POST",
+            body: discountFormData,
+          });
+          await safeJson(resDiscount);
+        }
       }
 
       // Step 6: Create receipt if payment exists

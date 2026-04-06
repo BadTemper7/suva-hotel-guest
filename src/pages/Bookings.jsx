@@ -361,15 +361,22 @@ export default function Bookings() {
   const handleCancelReservation = async (reservationId) => {
     if (!confirm("Are you sure you want to cancel this reservation?")) return;
 
-    const reason = window.prompt("Please provide a reason for cancellation:");
-    if (reason === null) return; // user cancelled prompt
-    if (!String(reason).trim()) {
-      toast.error("Cancellation reason is required.");
-      return;
+    let reason = "";
+    while (true) {
+      const input = window.prompt(
+        reason
+          ? "Cancellation reason is required. Please enter a reason:"
+          : "Please provide a reason for cancellation:",
+        reason,
+      );
+      if (input === null) return; // user cancelled prompt
+
+      reason = String(input).trim();
+      if (reason) break;
     }
 
     try {
-      await updateReservationStatus(reservationId, "cancelled", reason.trim());
+      await updateReservationStatus(reservationId, "cancelled", reason);
       toast.success("Reservation cancelled successfully");
       await loadAllReservations();
     } catch (err) {
