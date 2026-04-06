@@ -215,8 +215,8 @@ export default function GuestReservation() {
   const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
   const [receiptImagePreview, setReceiptImagePreview] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [selectedDiscountImage, setSelectedDiscountImage] = useState(null);
-  const [discountImagePreview, setDiscountImagePreview] = useState("");
+  const [selectedDiscountImages, setSelectedDiscountImages] = useState([]);
+  const [discountImagePreviews, setDiscountImagePreviews] = useState([]);
 
   const discountFileInputRef = useRef(null);
   const receiptFileInputRef = useRef(null);
@@ -406,6 +406,27 @@ export default function GuestReservation() {
     return finalTotal;
   }, [payment.paymentOption, paymentOptions, finalTotal]);
 
+  // Keep paid/received synced with computed amount when total changes
+  // (e.g. discount selected/removed) and when payment option changes.
+  useEffect(() => {
+    if (step !== 3) return;
+    if (!payment.paymentOption) return;
+
+    const selectedOption = paymentOptions.find(
+      (po) => po._id === payment.paymentOption,
+    );
+    let calculatedAmount = finalTotal;
+    if (selectedOption?.paymentType === "partial") {
+      calculatedAmount = (finalTotal * selectedOption.amount) / 100;
+    }
+
+    setPayment((prev) => ({
+      ...prev,
+      amountPaid: calculatedAmount,
+      amountReceived: calculatedAmount,
+    }));
+  }, [step, finalTotal, payment.paymentOption, paymentOptions]);
+
   const remainingBalance = useMemo(
     () => Math.max(finalTotal - payment.amountPaid, 0),
     [finalTotal, payment.amountPaid],
@@ -427,7 +448,7 @@ export default function GuestReservation() {
       return false;
     }
 
-    if (payment.discountId && !selectedDiscountImage) {
+    if (payment.discountId && selectedDiscountImages.length === 0) {
       return false;
     }
 
@@ -437,7 +458,7 @@ export default function GuestReservation() {
     finalTotal,
     paymentTypes,
     selectedReceiptImage,
-    selectedDiscountImage,
+    selectedDiscountImages,
   ]);
 
   const { roomCapacity, cottageCapacity, totalCapacity } = useMemo(() => {
@@ -577,7 +598,7 @@ export default function GuestReservation() {
       errors.receipt = "Receipt image is required for this payment type.";
     }
 
-    if (payment.discountId && !selectedDiscountImage) {
+    if (payment.discountId && selectedDiscountImages.length === 0) {
       errors.discountImage =
         "Discount image is required when applying discount.";
     }
@@ -681,10 +702,13 @@ export default function GuestReservation() {
     });
   };
 
-  const handleDiscountImageUpload = (file) => {
-    if (discountImagePreview) URL.revokeObjectURL(discountImagePreview);
-    setSelectedDiscountImage(file);
-    setDiscountImagePreview(URL.createObjectURL(file));
+  const handleDiscountImageUpload = (files) => {
+    const incoming = Array.from(files || []).filter(Boolean);
+    if (incoming.length === 0) return;
+
+    const incomingPreviews = incoming.map((file) => URL.createObjectURL(file));
+    setSelectedDiscountImages((prev) => [...prev, ...incoming]);
+    setDiscountImagePreviews((prev) => [...prev, ...incomingPreviews]);
   };
 
   const handleReceiptImageUpload = (file) => {
@@ -693,10 +717,20 @@ export default function GuestReservation() {
     setReceiptImagePreview(URL.createObjectURL(file));
   };
 
-  const removeDiscountImage = () => {
-    if (discountImagePreview) URL.revokeObjectURL(discountImagePreview);
-    setSelectedDiscountImage(null);
-    setDiscountImagePreview("");
+  const clearDiscountImages = () => {
+    discountImagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    setSelectedDiscountImages([]);
+    setDiscountImagePreviews([]);
+  };
+
+  const removeDiscountImageAt = (index) => {
+    setSelectedDiscountImages((prev) => prev.filter((_, i) => i !== index));
+    setDiscountImagePreviews((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed);
+      return next;
+    });
   };
 
   const removeReceiptImage = () => {
@@ -722,7 +756,7 @@ export default function GuestReservation() {
       amountPaid: 0,
       amountReceived: 0,
     });
-    removeDiscountImage();
+    clearDiscountImages();
     removeReceiptImage();
     setReferenceNumber("");
     setAvailableRooms([]);
@@ -820,6 +854,28 @@ export default function GuestReservation() {
 
   const submitReservation = async () => {
     if (!validateStep3()) return;
+
+    const selectedPaymentTypeData = paymentTypes.find(
+      (pt) => pt._id === payment.paymentType,
+    );
+    const requiresReceiptForSelected =
+      selectedPaymentTypeData?.isReceipt === true;
+
+    if (payment.discountId && selectedDiscountImages.length === 0) {
+      setFieldError(
+        "discountImage",
+        "At least one discount image is required when applying discount.",
+      );
+      toast.error("Please upload at least one discount image.");
+      return;
+    }
+
+    if (requiresReceiptForSelected && !selectedReceiptImage) {
+      setFieldError("receipt", "Receipt image is required for this payment type.");
+      toast.error("Please upload a receipt image.");
+      return;
+    }
+
     setShowConfirmModal(false);
 
     try {
@@ -852,7 +908,7 @@ export default function GuestReservation() {
           amountReceived: payment.amountReceived,
           status: payment.status || "pending",
         },
-        discountImageFile: selectedDiscountImage,
+        discountImageFiles: selectedDiscountImages,
         receiptData: {
           imageFile: selectedReceiptImage,
           referenceNumber: referenceNumber || null,
@@ -1677,9 +1733,18 @@ export default function GuestReservation() {
                     <select
                       value={payment.discountId}
                       onChange={(e) => {
-                        setPayment({ ...payment, discountId: e.target.value });
-                        if (!e.target.value) removeDiscountImage();
-                        setFieldError("discountImage", "");
+                        const nextDiscountId = e.target.value;
+                        setPayment({ ...payment, discountId: nextDiscountId });
+                        // Stricter UI: when discount selection changes, require a fresh upload.
+                        clearDiscountImages();
+                        if (nextDiscountId) {
+                          setFieldError(
+                            "discountImage",
+                            "Discount image is required when applying discount.",
+                          );
+                        } else {
+                          setFieldError("discountImage", "");
+                        }
                       }}
                       className="mt-1 w-full h-11 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700"
                     >
@@ -1754,28 +1819,44 @@ export default function GuestReservation() {
                         ref={discountFileInputRef}
                         type="file"
                         accept="image/*"
+                        multiple
                         className="hidden"
                         onChange={(e) => {
-                          if (e.target.files?.[0])
-                            handleDiscountImageUpload(e.target.files[0]);
+                          if (e.target.files?.length) {
+                            handleDiscountImageUpload(e.target.files);
+                            setFieldError("discountImage", "");
+                            e.target.value = "";
+                          }
                         }}
                       />
                     </div>
-                    {discountImagePreview ? (
-                      <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
-                        <div className="relative">
-                          <img
-                            src={discountImagePreview}
-                            alt="Discount ID"
-                            className="h-48 w-full object-contain bg-gray-50"
-                          />
-                          <button
-                            type="button"
-                            onClick={removeDiscountImage}
-                            className="absolute top-2 right-2 h-9 w-9 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 grid place-items-center text-[#0c2bfc] transition-all duration-200"
-                          >
-                            <FiTrash2 size={14} />
-                          </button>
+                    {discountImagePreviews.length > 0 ? (
+                      <div className="rounded-lg border border-gray-200 bg-white p-3">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {discountImagePreviews.map((img, idx) => (
+                            <div
+                              key={`${img}-${idx}`}
+                              className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+                            >
+                              <img
+                                src={img}
+                                alt={`Discount ID ${idx + 1}`}
+                                className="h-28 w-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeDiscountImageAt(idx)}
+                                className="absolute top-1.5 right-1.5 h-7 w-7 rounded-md border border-gray-200 bg-white hover:bg-gray-50 grid place-items-center text-[#0c2bfc] transition-all duration-200"
+                                title="Remove"
+                              >
+                                <FiTrash2 size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          {discountImagePreviews.length} image
+                          {discountImagePreviews.length > 1 ? "s" : ""} uploaded
                         </div>
                       </div>
                     ) : (
@@ -1810,7 +1891,7 @@ export default function GuestReservation() {
                             Receipt Information *
                           </div>
                           <div className="text-xs text-gray-500 mb-3">
-                            Upload receipt image (required).
+                            Upload receipt image (required for online payments).
                           </div>
                         </div>
 
