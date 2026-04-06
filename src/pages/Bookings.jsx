@@ -87,12 +87,14 @@ function PaymentStatusBadge({ paymentStatus }) {
     paid: "bg-green-100 text-green-800 border-green-200",
     partial: "bg-yellow-100 text-yellow-800 border-yellow-200",
     unpaid: "bg-red-100 text-red-800 border-red-200",
+    free: "bg-purple-100 text-purple-800 border-purple-200",
   };
 
   const labels = {
     paid: "Paid",
     partial: "Partial",
     unpaid: "Unpaid",
+    free: "Free",
   };
 
   return (
