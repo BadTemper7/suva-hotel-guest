@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
 import { motion, AnimatePresence } from "framer-motion";
+import RoomQuickViewModal from "../components/modal/RoomQuickViewModal";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const Home = () => {
   const [featuredCottages, setFeaturedCottages] = useState([]);
   const [isVisible, setIsVisible] = useState(false);
   const statsRef = useRef(null);
+  const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const [quickViewItem, setQuickViewItem] = useState(null);
 
   const heroSlides = [
     {
@@ -100,6 +103,16 @@ const Home = () => {
     navigate("/contact");
   };
 
+  const openQuickView = (item) => {
+    setQuickViewItem(item);
+    setQuickViewOpen(true);
+  };
+
+  const closeQuickView = () => {
+    setQuickViewOpen(false);
+    setQuickViewItem(null);
+  };
+
   // Animation variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
@@ -167,6 +180,11 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
+      <RoomQuickViewModal
+        open={quickViewOpen}
+        item={quickViewItem}
+        onClose={closeQuickView}
+      />
       {/* Hero Section with Carousel */}
       <div className="relative h-screen overflow-hidden">
         <AnimatePresence mode="wait">
@@ -414,7 +432,11 @@ const Home = () => {
                           </span>
                         </div>
                         <Link
-                          to={`/rooms`}
+                          to="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openQuickView(room);
+                          }}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-300 transform hover:scale-105"
                         >
                           View Details
@@ -552,7 +574,11 @@ const Home = () => {
                           </span>
                         </div>
                         <Link
-                          to={`/cottages`}
+                          to="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openQuickView(cottage);
+                          }}
                           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-300 transform hover:scale-105"
                         >
                           View Details
