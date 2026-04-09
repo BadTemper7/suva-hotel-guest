@@ -215,6 +215,8 @@ export default function GuestReservation() {
     paymentOption: "",
     paymentType: "",
     discountId: "",
+    seniorCitizenCount: 0,
+    pwdCount: 0,
     amountPaid: 0,
     amountReceived: 0,
     status: "pending",
@@ -371,32 +373,73 @@ export default function GuestReservation() {
     if (!payment.discountId) return { amount: 0, percent: 0, name: "" };
     const discountData = discounts.find((d) => d._id === payment.discountId);
     if (!discountData) return { amount: 0, percent: 0, name: "" };
+
+    const totalPax = Math.max(
+      1,
+      Number(reservationFormData.adults || 0) +
+        Number(reservationFormData.children || 0),
+    );
+    const declared = Math.min(
+      Math.max(
+        0,
+        Number(payment.seniorCitizenCount || 0) +
+          Number(payment.pwdCount || 0),
+      ),
+      totalPax,
+    );
+    const maxCap =
+      discountData.maxRoomCount != null
+        ? Math.min(declared, discountData.maxRoomCount)
+        : declared;
+    const idFiles = selectedDiscountImages.length;
+    const effectiveIds =
+      discountData.isPerId && idFiles > 0 ? Math.min(maxCap, idFiles) : maxCap;
+
+    if (discountData.isPerId) {
+      const pct = Number(discountData.discountPercent || 20) / 100;
+      const basePerPax = totalAmount / totalPax;
+      return {
+        amount: basePerPax * pct * effectiveIds,
+        percent: discountData.discountPercent || 20,
+        name: discountData.name,
+      };
+    }
+
     if (discountData.appliesToAllRooms) {
       return {
         amount: (totalAmount * discountData.discountPercent) / 100,
         percent: discountData.discountPercent,
         name: discountData.name,
       };
-    } else {
-      if (roomTotals.length === 0) return { amount: 0, percent: 0, name: "" };
-      let targetRoom;
-      if (discountData.discountPriority === "highest") {
-        targetRoom = roomTotals.reduce((max, room) =>
-          room.total > max.total ? room : max,
-        );
-      } else {
-        targetRoom = roomTotals.reduce((min, room) =>
-          room.total < min.total ? room : min,
-        );
-      }
-      return {
-        amount: (targetRoom.total * discountData.discountPercent) / 100,
-        percent: discountData.discountPercent,
-        name: discountData.name,
-        roomId: targetRoom.roomId,
-      };
     }
-  }, [payment.discountId, discounts, totalAmount, roomTotals]);
+    if (roomTotals.length === 0) return { amount: 0, percent: 0, name: "" };
+    let targetRoom;
+    if (discountData.discountPriority === "highest") {
+      targetRoom = roomTotals.reduce((max, room) =>
+        room.total > max.total ? room : max,
+      );
+    } else {
+      targetRoom = roomTotals.reduce((min, room) =>
+        room.total < min.total ? room : min,
+      );
+    }
+    return {
+      amount: (targetRoom.total * discountData.discountPercent) / 100,
+      percent: discountData.discountPercent,
+      name: discountData.name,
+      roomId: targetRoom.roomId,
+    };
+  }, [
+    payment.discountId,
+    payment.seniorCitizenCount,
+    payment.pwdCount,
+    discounts,
+    totalAmount,
+    roomTotals,
+    reservationFormData.adults,
+    reservationFormData.children,
+    selectedDiscountImages.length,
+  ]);
 
   const finalTotal = useMemo(
     () => totalAmount - discount.amount,
@@ -457,8 +500,20 @@ export default function GuestReservation() {
       return false;
     }
 
-    if (payment.discountId && selectedDiscountImages.length === 0) {
-      return false;
+    const selectedDisc = discounts.find((d) => d._id === payment.discountId);
+    if (payment.discountId && selectedDisc) {
+      if (selectedDisc.isPerId) {
+        const totalPax =
+          Number(reservationFormData.adults || 0) +
+          Number(reservationFormData.children || 0);
+        const declared =
+          Number(payment.seniorCitizenCount || 0) +
+          Number(payment.pwdCount || 0);
+        if (declared < 1 || declared > totalPax) return false;
+        if (selectedDiscountImages.length !== declared) return false;
+      } else if (selectedDiscountImages.length === 0) {
+        return false;
+      }
     }
 
     return true;
@@ -466,8 +521,42 @@ export default function GuestReservation() {
     payment,
     finalTotal,
     paymentTypes,
+    discounts,
+    reservationFormData.adults,
+    reservationFormData.children,
     selectedReceiptImage,
     selectedDiscountImages,
+  ]);
+
+  /** Per-ID discounts: required image count = seniors + PWDs; else 1 proof image. */
+  const discountIdUploadProgress = useMemo(() => {
+    if (!payment.discountId) return null;
+    const disc = discounts.find((d) => d._id === payment.discountId);
+    if (!disc) return null;
+    const isPerId = !!disc.isPerId;
+    const seniorPwdSum =
+      Number(payment.seniorCitizenCount || 0) +
+      Number(payment.pwdCount || 0);
+    const required = isPerId ? seniorPwdSum : 1;
+    const uploaded = selectedDiscountImages.length;
+    const requiredReady = !isPerId || seniorPwdSum > 0;
+    let status = "pending";
+    if (requiredReady && uploaded === required && required > 0) status = "complete";
+    else if (requiredReady && uploaded > required) status = "over";
+    return {
+      isPerId,
+      required,
+      uploaded,
+      requiredReady,
+      seniorPwdSum,
+      status,
+    };
+  }, [
+    payment.discountId,
+    payment.seniorCitizenCount,
+    payment.pwdCount,
+    discounts,
+    selectedDiscountImages.length,
   ]);
 
   const { roomCapacity, cottageCapacity, totalCapacity } = useMemo(() => {
@@ -609,9 +698,31 @@ export default function GuestReservation() {
       errors.receipt = "Receipt image is required for this payment type.";
     }
 
-    if (payment.discountId && selectedDiscountImages.length === 0) {
-      errors.discountImage =
-        "Discount image is required when applying discount.";
+    const selectedDisc = discounts.find((d) => d._id === payment.discountId);
+    if (payment.discountId && selectedDisc) {
+      if (selectedDisc.isPerId) {
+        const totalPax =
+          Number(reservationFormData.adults || 0) +
+          Number(reservationFormData.children || 0);
+        const declared =
+          Number(payment.seniorCitizenCount || 0) +
+          Number(payment.pwdCount || 0);
+        if (declared < 1) {
+          errors.seniorPwd =
+            "Enter how many guests qualify (senior citizens and/or PWDs).";
+        } else if (declared > totalPax) {
+          errors.seniorPwd = `Senior + PWD total cannot exceed guests (${totalPax}).`;
+        }
+        if (
+          declared >= 1 &&
+          selectedDiscountImages.length !== declared
+        ) {
+          errors.discountImage = `Upload exactly ${declared} valid ID image(s) (one per qualifying guest). You have ${selectedDiscountImages.length}.`;
+        }
+      } else if (selectedDiscountImages.length === 0) {
+        errors.discountImage =
+          "Discount image is required when applying discount.";
+      }
     }
 
     setErrors(errors);
@@ -764,8 +875,11 @@ export default function GuestReservation() {
       paymentOption: "",
       paymentType: "",
       discountId: "",
+      seniorCitizenCount: 0,
+      pwdCount: 0,
       amountPaid: 0,
       amountReceived: 0,
+      status: "pending",
     });
     clearDiscountImages();
     removeReceiptImage();
@@ -872,15 +986,6 @@ export default function GuestReservation() {
     const requiresReceiptForSelected =
       selectedPaymentTypeData?.isReceipt === true;
 
-    if (payment.discountId && selectedDiscountImages.length === 0) {
-      setFieldError(
-        "discountImage",
-        "At least one discount image is required when applying discount.",
-      );
-      toast.error("Please upload at least one discount image.");
-      return;
-    }
-
     if (requiresReceiptForSelected && !selectedReceiptImage) {
       setFieldError("receipt", "Receipt image is required for this payment type.");
       toast.error("Please upload a receipt image.");
@@ -902,6 +1007,8 @@ export default function GuestReservation() {
           checkOut: reservationFormData.checkOut,
           adults: reservationFormData.adults,
           children: reservationFormData.children,
+          seniorCitizenCount: payment.seniorCitizenCount || 0,
+          pwdCount: payment.pwdCount || 0,
           notes: reservationFormData.notes || "",
           paymentOption: payment.paymentOption,
           discountId: payment.discountId || null,
@@ -1745,7 +1852,12 @@ export default function GuestReservation() {
                       value={payment.discountId}
                       onChange={(e) => {
                         const nextDiscountId = e.target.value;
-                        setPayment({ ...payment, discountId: nextDiscountId });
+                        setPayment({
+                          ...payment,
+                          discountId: nextDiscountId,
+                          seniorCitizenCount: 0,
+                          pwdCount: 0,
+                        });
                         // Stricter UI: when discount selection changes, require a fresh upload.
                         clearDiscountImages();
                         if (nextDiscountId) {
@@ -1765,14 +1877,100 @@ export default function GuestReservation() {
                         .map((d) => (
                           <option key={d._id} value={d._id}>
                             {d.name} ({d.discountPercent}%
-                            {d.appliesToAllRooms
-                              ? ", All rooms"
-                              : `, ${d.discountPriority} room`}
+                            {d.isPerId
+                              ? ", Per valid ID"
+                              : d.appliesToAllRooms
+                                ? ", All rooms"
+                                : `, ${d.discountPriority} room`}
                             )
                           </option>
                         ))}
                     </select>
+                    {(() => {
+                      const sel = discounts.find(
+                        (d) => d._id === payment.discountId,
+                      );
+                      if (!sel) return null;
+                      if (sel.isPerId) {
+                        const pct = Number(sel.discountPercent || 20);
+                        return (
+                          <div
+                            className="mt-2 space-y-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-950"
+                          >
+                            <p>
+                              <span className="font-medium text-blue-900">
+                                PWD / Senior (per valid ID):
+                              </span>{" "}
+                              Senior + PWD combined cannot exceed total guests.
+                              Upload exactly that many ID images—one government
+                              ID per qualifying guest. Staff must approve IDs
+                              before the discount applies to billing.
+                            </p>
+                            <p className="rounded-md border border-blue-200/80 bg-blue-100/90 px-3 py-2 font-mono text-[11px] leading-relaxed text-blue-950">
+                              Discount ≈ (subtotal ÷ guests) × {pct}% × (seniors
+                              + PWDs). Here{" "}
+                              <span className="font-sans text-blue-900/90">
+                                subtotal = rooms/add-ons before discount, guests
+                                = adults + children
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <p className="mt-2 text-xs text-gray-500">
+                          <span className="font-medium text-gray-700">
+                            Subtotal discount:
+                          </span>{" "}
+                          {sel.appliesToAllRooms
+                            ? `${sel.discountPercent}% applies to your booking subtotal (e.g. seasonal promos)—not per person.`
+                            : `${sel.discountPercent}% applies to the selected room rule for this discount—not a head count.`}
+                        </p>
+                      );
+                    })()}
                   </div>
+
+                  {discounts.find((d) => d._id === payment.discountId)
+                    ?.isPerId && (
+                    <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+                      <NumberInput
+                        label="Senior citizens (discount)"
+                        value={payment.seniorCitizenCount}
+                        onChange={(newValue) =>
+                          setPayment({
+                            ...payment,
+                            seniorCitizenCount: newValue,
+                          })
+                        }
+                        min={0}
+                        max={Math.max(
+                          0,
+                          requiredCapacity - Number(payment.pwdCount || 0),
+                        )}
+                        step={1}
+                        description={`Max ${Math.max(0, requiredCapacity - Number(payment.pwdCount || 0))} (guests: ${requiredCapacity}, PWDs: ${payment.pwdCount}).`}
+                      />
+                      <NumberInput
+                        label="PWDs (discount)"
+                        value={payment.pwdCount}
+                        onChange={(newValue) =>
+                          setPayment({
+                            ...payment,
+                            pwdCount: newValue,
+                          })
+                        }
+                        min={0}
+                        max={Math.max(
+                          0,
+                          requiredCapacity -
+                            Number(payment.seniorCitizenCount || 0),
+                        )}
+                        step={1}
+                        description={`Max ${Math.max(0, requiredCapacity - Number(payment.seniorCitizenCount || 0))} (guests: ${requiredCapacity}, seniors: ${payment.seniorCitizenCount}).`}
+                      />
+                    </div>
+                  )}
+                  <FieldError text={errors.seniorPwd} className="sm:col-span-2" />
 
                   <div>
                     <label className="text-sm font-medium text-gray-700">
@@ -1815,10 +2013,43 @@ export default function GuestReservation() {
 
                 {payment.discountId && (
                   <div className="mt-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-gray-700">
-                        Discount ID Image *
-                      </label>
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Discount ID Image *
+                          </label>
+                          {discountIdUploadProgress && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+                                discountIdUploadProgress.status === "complete"
+                                  ? "bg-green-100 text-green-800"
+                                  : discountIdUploadProgress.status === "over"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-900"
+                              }`}
+                              title={
+                                discountIdUploadProgress.isPerId
+                                  ? "Uploaded IDs vs seniors + PWDs declared"
+                                  : "Uploaded proof images (1 required)"
+                              }
+                            >
+                              {discountIdUploadProgress.uploaded} /{" "}
+                              {discountIdUploadProgress.isPerId &&
+                              discountIdUploadProgress.seniorPwdSum < 1
+                                ? "—"
+                                : discountIdUploadProgress.required}
+                            </span>
+                          )}
+                        </div>
+                        {discountIdUploadProgress?.isPerId &&
+                          discountIdUploadProgress.seniorPwdSum < 1 && (
+                            <p className="text-xs text-amber-800 mt-1">
+                              Enter senior and PWD counts above to set the
+                              required number of ID photos.
+                            </p>
+                          )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => discountFileInputRef.current?.click()}
@@ -1865,9 +2096,27 @@ export default function GuestReservation() {
                             </div>
                           ))}
                         </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          {discountImagePreviews.length} image
-                          {discountImagePreviews.length > 1 ? "s" : ""} uploaded
+                        <div className="mt-2 text-xs text-gray-600">
+                          {discountIdUploadProgress ? (
+                            <>
+                              <span className="font-medium tabular-nums">
+                                {discountIdUploadProgress.uploaded} /{" "}
+                                {discountIdUploadProgress.isPerId &&
+                                discountIdUploadProgress.seniorPwdSum < 1
+                                  ? "—"
+                                  : discountIdUploadProgress.required}
+                              </span>
+                              {discountIdUploadProgress.isPerId
+                                ? " ID images (one per senior + PWD)"
+                                : " proof image(s) (one required)"}
+                            </>
+                          ) : (
+                            <>
+                              {discountImagePreviews.length} image
+                              {discountImagePreviews.length > 1 ? "s" : ""}{" "}
+                              uploaded
+                            </>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -1879,6 +2128,19 @@ export default function GuestReservation() {
                         <div>Upload discount ID image</div>
                         <div className="text-xs text-gray-400 mt-1">
                           Required for discount application
+                          {discountIdUploadProgress?.isPerId ? (
+                            <span className="block mt-2 font-medium text-gray-600 tabular-nums">
+                              {discountIdUploadProgress.uploaded} /{" "}
+                              {discountIdUploadProgress.seniorPwdSum < 1
+                                ? "—"
+                                : discountIdUploadProgress.required}{" "}
+                              (seniors + PWDs)
+                            </span>
+                          ) : (
+                            <span className="block mt-2 font-medium text-gray-600 tabular-nums">
+                              {discountIdUploadProgress?.uploaded ?? 0} / 1
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}

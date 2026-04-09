@@ -22,6 +22,7 @@ import {
 import { useReservationStore } from "../stores/reservationStore";
 import { useGuestStore } from "../stores/guestStore";
 import Loader from "../components/ui/Loader";
+import GuestDiscountIdModal from "../components/modals/GuestDiscountIdModal.jsx";
 import toast from "react-hot-toast";
 const PesoIcon = ({ className = "w-5 h-5", ...props }) => (
   <span
@@ -324,6 +325,7 @@ export default function Bookings() {
   const [selectedTab, setSelectedTab] = useState("upcoming");
   const [expandedReservation, setExpandedReservation] = useState(null);
   const [allReservations, setAllReservations] = useState([]);
+  const [discountIdModalProof, setDiscountIdModalProof] = useState(null);
 
   useEffect(() => {
     initialize();
@@ -591,7 +593,14 @@ export default function Bookings() {
         </div>
       ) : (
         <div className="space-y-6">
-          {filteredReservations.map((booking) => (
+          {filteredReservations.map((booking) => {
+            const seniorPwdDeclared =
+              Number(booking.reservation?.seniorCitizenCount || 0) +
+              Number(booking.reservation?.pwdCount || 0);
+            const showPerGuestIdDiscountDetails =
+              Boolean(booking.discount?.isPerId) || seniorPwdDeclared > 0;
+
+            return (
             <motion.div
               key={booking.reservation._id}
               initial={{ opacity: 0, y: 20 }}
@@ -724,7 +733,9 @@ export default function Bookings() {
                                 {formatMoney(booking.billing.totalAmount)}
                               </p>
                             </div>
-                            {Number(booking.billing.discountAmount || 0) > 0 && (
+                            {(Number(booking.billing.discountAmount || 0) > 0 ||
+                              booking.discount?.isPerId ||
+                              seniorPwdDeclared > 0) && (
                               <div className="bg-gray-50 rounded-xl p-4">
                                 <p className="text-sm text-gray-500">
                                   Discount
@@ -732,13 +743,52 @@ export default function Bookings() {
                                     ? ` (${booking.discount.name})`
                                     : ""}
                                 </p>
-                                <p className="text-2xl font-bold text-green-600">
-                                  -{formatMoney(booking.billing.discountAmount)}
-                                </p>
+                                {Number(booking.billing.discountAmount || 0) >
+                                0 ? (
+                                  <p className="text-2xl font-bold text-green-600">
+                                    -
+                                    {formatMoney(booking.billing.discountAmount)}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-amber-900/90 mt-1">
+                                    Amount updates after staff verify your valid
+                                    IDs.
+                                  </p>
+                                )}
                                 {booking.discount?.discountPercent ? (
                                   <p className="text-xs text-gray-500 mt-1">
                                     {booking.discount.discountPercent}% off
                                   </p>
+                                ) : null}
+                                {showPerGuestIdDiscountDetails ? (
+                                  <div className="mt-3 pt-3 border-t border-gray-200">
+                                    <p className="text-xs font-medium text-gray-600 mb-2">
+                                      PWD / Senior (per valid ID)
+                                    </p>
+                                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
+                                      <span>
+                                        <span className="text-gray-500">
+                                          Senior citizens:{" "}
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                          {Number(
+                                            booking.reservation
+                                              .seniorCitizenCount || 0,
+                                          )}
+                                        </span>
+                                      </span>
+                                      <span>
+                                        <span className="text-gray-500">
+                                          PWDs:{" "}
+                                        </span>
+                                        <span className="font-semibold text-gray-900">
+                                          {Number(
+                                            booking.reservation.pwdCount || 0,
+                                          )}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </div>
                                 ) : null}
                               </div>
                             )}
@@ -790,6 +840,104 @@ export default function Bookings() {
                         </div>
                       )}
 
+                      {booking.discountProofs?.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                            <FiImage /> Discount IDs
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            IDs you uploaded for your discount. Tap a photo to
+                            enlarge. Status is set by front desk after review.
+                          </p>
+                          {Number(booking.discountProofSummary?.rejected || 0) >
+                            0 && (
+                            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+                              One or more IDs were not accepted—your discount on
+                              the bill matches only approved proofs. Open an item
+                              below to read the staff note.
+                            </p>
+                          )}
+                          {booking.discountProofSummary &&
+                            booking.discountProofSummary.total > 0 && (
+                              <div className="flex flex-wrap gap-2 text-xs mb-4">
+                                <span className="rounded-full bg-green-50 text-green-800 px-2.5 py-1 font-medium border border-green-100">
+                                  Approved:{" "}
+                                  {booking.discountProofSummary.confirmed ?? 0}
+                                </span>
+                                <span className="rounded-full bg-[#0c2bfc]/10 text-[#0c2bfc] px-2.5 py-1 font-medium border border-[#0c2bfc]/15">
+                                  Pending:{" "}
+                                  {booking.discountProofSummary.pending ?? 0}
+                                </span>
+                                <span className="rounded-full bg-red-50 text-red-800 px-2.5 py-1 font-medium border border-red-100">
+                                  Not accepted:{" "}
+                                  {booking.discountProofSummary.rejected ?? 0}
+                                </span>
+                              </div>
+                            )}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {booking.discountProofs.map((p, idx) => {
+                              const st = p.status;
+                              const short =
+                                st === "confirmed"
+                                  ? "Approved"
+                                  : st === "rejected"
+                                    ? "Not accepted"
+                                    : "Pending";
+                              const ring =
+                                st === "confirmed"
+                                  ? "ring-green-200"
+                                  : st === "rejected"
+                                    ? "ring-red-200"
+                                    : "ring-[#0c2bfc]/20";
+                              return (
+                                <button
+                                  key={`${booking.reservation._id}-proof-${idx}`}
+                                  type="button"
+                                  onClick={() => setDiscountIdModalProof(p)}
+                                  className="group text-left rounded-xl border border-gray-200 bg-white p-2 shadow-sm hover:shadow-md hover:border-[#0c2bfc]/30 transition-all focus:outline-none focus:ring-2 focus:ring-[#0c2bfc]/30"
+                                >
+                                  <div
+                                    className={`relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 ring-2 ${ring}`}
+                                  >
+                                    {p.url ? (
+                                      <img
+                                        src={p.url}
+                                        alt=""
+                                        className="w-full h-full object-cover group-hover:opacity-95 transition-opacity"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full grid place-items-center text-xs text-gray-400 px-2 text-center">
+                                        No preview
+                                      </div>
+                                    )}
+                                    <span className="absolute bottom-1.5 left-1.5 right-1.5 rounded-md bg-black/65 text-[10px] font-semibold text-white px-1.5 py-0.5 text-center">
+                                      Tap to view
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-xs font-semibold text-gray-900 truncate">
+                                    {p.label}
+                                    {p.discountName
+                                      ? ` · ${p.discountName}`
+                                      : ""}
+                                  </p>
+                                  <p
+                                    className={`text-[11px] font-medium mt-0.5 ${
+                                      st === "confirmed"
+                                        ? "text-green-700"
+                                        : st === "rejected"
+                                          ? "text-red-700"
+                                          : "text-[#0c2bfc]"
+                                    }`}
+                                  >
+                                    {short}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Notes */}
                       {booking.reservation.notes && (
                         <div className="bg-gray-50 rounded-xl p-4">
@@ -806,9 +954,16 @@ export default function Bookings() {
                 )}
               </AnimatePresence>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <GuestDiscountIdModal
+        open={!!discountIdModalProof}
+        proof={discountIdModalProof}
+        onClose={() => setDiscountIdModalProof(null)}
+      />
     </div>
   );
 }
