@@ -51,6 +51,15 @@ const setTimeTo = (date, hours, minutes = 0) => {
   return d;
 };
 
+const isDateBeforeToday = (dateValue) => {
+  if (!dateValue) return false;
+  const selected = new Date(dateValue);
+  const today = new Date();
+  selected.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return selected < today;
+};
+
 const getDefaultCheckIn = () => {
   const now = new Date();
   const checkIn = setTimeTo(now, 14, 0);
@@ -528,6 +537,8 @@ export default function GuestReservation() {
   const validateStep1 = () => {
     const errors = {};
     if (!reservationFormData.checkIn) errors.checkIn = "Check-in is required.";
+    else if (isDateBeforeToday(reservationFormData.checkIn))
+      errors.checkIn = "Check-in date cannot be in the past.";
     if (!reservationFormData.checkOut)
       errors.checkOut = "Check-out is required.";
     if (
@@ -1066,11 +1077,11 @@ export default function GuestReservation() {
                         onChange={(e) => {
                           const newDate = e.target.value;
                           if (newDate) {
+                            const selectedDate = new Date(newDate);
+                            selectedDate.setHours(0, 0, 0, 0);
                             // Check if selected date is today or future
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            const selectedDate = new Date(newDate);
-                            selectedDate.setHours(0, 0, 0, 0);
 
                             if (selectedDate >= today) {
                               // Always set time to 14:00 (2:00 PM)

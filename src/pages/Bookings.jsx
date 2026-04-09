@@ -418,28 +418,25 @@ export default function Bookings() {
     }
   };
 
+  const isTerminalStatus = (status) =>
+    status === "cancelled" ||
+    status === "checked_out" ||
+    status === "expired" ||
+    status === "no_show";
+
   // Helper to check if reservation is upcoming or past
   const isUpcoming = (booking) => {
-    const checkIn = new Date(booking.reservation.checkIn);
+    const checkOut = new Date(booking.reservation.checkOut);
     const now = new Date();
-    return (
-      checkIn > now &&
-      booking.reservation.status !== "cancelled" &&
-      booking.reservation.status !== "checked_out" &&
-      booking.reservation.status !== "expired" &&
-      booking.reservation.status !== "no_show"
-    );
+    // Show both future and currently active stays under Upcoming.
+    return checkOut >= now && !isTerminalStatus(booking.reservation.status);
   };
 
   const isPast = (booking) => {
     const checkOut = new Date(booking.reservation.checkOut);
     const now = new Date();
     return (
-      checkOut < now ||
-      booking.reservation.status === "cancelled" ||
-      booking.reservation.status === "checked_out" ||
-      booking.reservation.status === "expired" ||
-      booking.reservation.status === "no_show"
+      checkOut < now || isTerminalStatus(booking.reservation.status)
     );
   };
 
