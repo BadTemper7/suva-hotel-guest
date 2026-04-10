@@ -1974,37 +1974,29 @@ export default function GuestReservation() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-700">
-                      Amount Paid *
+                      Amount Paid
                     </label>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       value={payment.amountPaid}
-                      onChange={(e) => {
-                        const nextValue = Number(e.target.value) || 0;
-                        setPayment((prev) => ({
-                          ...prev,
-                          amountPaid: nextValue,
-                          amountReceived: nextValue,
-                        }));
-                        setFieldError("amountPaid", "");
-                      }}
-                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      disabled
+                      className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none bg-gray-100 text-gray-700 cursor-not-allowed ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
 
                   <div>
                     <label className="text-sm font-medium text-gray-700">
-                      Amount Received *
+                      Amount Received
                     </label>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       value={payment.amountReceived}
-                      disabled={true}
+                      disabled
                       className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none bg-gray-100 text-gray-700 cursor-not-allowed ${errors.amountReceived ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
                     <FieldError text={errors.amountReceived} />
