@@ -96,6 +96,7 @@ function PaymentStatusBadge({ paymentStatus }) {
     partial: "Partial",
     unpaid: "Unpaid",
     free: "Free",
+    refunded: "Refunded",
   };
 
   return (
