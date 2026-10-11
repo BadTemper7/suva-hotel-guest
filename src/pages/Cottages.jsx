@@ -67,7 +67,12 @@ export default function GuestCottages() {
   // Filter cottages when rooms data changes or filters change
   useEffect(() => {
     if (rooms && rooms.length > 0) {
-      let filtered = rooms.filter((room) => room.category === "cottage");
+      let filtered = rooms.filter(
+        (room) =>
+          room.category === "cottage" &&
+          room.status !== "inactive" &&
+          room.status !== "maintenance",
+      );
 
       // Search by cottage number or description
       if (searchTerm) {

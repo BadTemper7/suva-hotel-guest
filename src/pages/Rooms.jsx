@@ -63,7 +63,12 @@ export default function GuestRooms() {
   // Filter rooms when rooms data changes or filters change
   useEffect(() => {
     if (rooms && rooms.length > 0) {
-      let filtered = rooms.filter((room) => room.category === "room");
+      let filtered = rooms.filter(
+        (room) =>
+          room.category === "room" &&
+          room.status !== "inactive" &&
+          room.status !== "maintenance",
+      );
 
       // Search by room number or type or description
       if (searchTerm) {
