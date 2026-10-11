@@ -1,14 +1,10 @@
 // src/pages/guest/Contact.jsx
-import { useState, useEffect } from "react";
-import { useGuestStore } from "../stores/guestStore";
+import { useState } from "react";
 import { useMessageStore } from "../stores/messageStore";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 
 export default function Contact() {
-  const { isAuthenticated, currentGuest, initialize } = useGuestStore();
   const { sendMessage } = useMessageStore();
-  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -19,22 +15,6 @@ export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Initialize guest store on component mount
-  useEffect(() => {
-    initialize();
-  }, []);
-
-  // Update form when currentGuest changes
-  useEffect(() => {
-    if (currentGuest) {
-      setFormData((prev) => ({
-        ...prev,
-        name: `${currentGuest.firstName} ${currentGuest.lastName}`.trim(),
-        email: currentGuest.email || "",
-      }));
-    }
-  }, [currentGuest]);
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -42,33 +22,15 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if user is authenticated
-    if (!isAuthenticated) {
-      toast.error("Please log in to send a message");
-      navigate("/login", { state: { from: "/guest/contact" } });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      console.log("Current guest:", currentGuest);
-      console.log("Sending message with data:", formData);
-
       const response = await sendMessage(formData);
-      console.log("Response from server:", response);
 
       if (response.success) {
         setSubmitted(true);
         toast.success(response.message || "Message sent successfully!");
-        setFormData({
-          name: currentGuest
-            ? `${currentGuest.firstName} ${currentGuest.lastName}`.trim()
-            : "",
-          email: currentGuest?.email || "",
-          subject: "",
-          message: "",
-        });
+        setFormData({ name: "", email: "", subject: "", message: "" });
       } else {
         throw new Error(response.message || "Failed to send message");
       }
@@ -148,23 +110,6 @@ export default function Contact() {
           Have questions? We'd love to hear from you. Send us a message and
           we'll respond as soon as possible.
         </p>
-        {!isAuthenticated && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md mx-auto">
-            <p className="text-sm text-yellow-800">
-              ⚠️ Please log in to send a message.{" "}
-              <button
-                onClick={() =>
-                  navigate("/login", {
-                    state: { from: "/contact" },
-                  })
-                }
-                className="font-semibold underline hover:text-yellow-900"
-              >
-                Login here
-              </button>
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -287,13 +232,7 @@ export default function Contact() {
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="Your name"
-                      disabled={isAuthenticated}
                     />
-                    {isAuthenticated && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Using your account information
-                      </p>
-                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -307,13 +246,7 @@ export default function Contact() {
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="your@email.com"
-                      disabled={isAuthenticated}
                     />
-                    {isAuthenticated && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Using your account email
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -349,7 +282,7 @@ export default function Contact() {
 
                 <button
                   type="submit"
-                  disabled={loading || !isAuthenticated}
+                  disabled={loading}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (

@@ -2,17 +2,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useRoomStore } from "../stores/roomStore";
-import { useGuestStore } from "../stores/guestStore";
 import { useReservationStore } from "../stores/reservationStore";
 import ListingImageCarousel from "../components/listing/ListingImageCarousel.jsx";
 
 export default function GuestCottages() {
   const { rooms, loading, error, fetchRooms } = useRoomStore();
-  const { isAuthenticated, checkAuth, initialize, initialized } =
-    useGuestStore();
   const { fetchAvailableRooms } = useReservationStore();
   const [filteredCottages, setFilteredCottages] = useState([]);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCapacity, setSelectedCapacity] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("");
@@ -110,24 +106,6 @@ export default function GuestCottages() {
     }
   }, [rooms, searchTerm, selectedCapacity, selectedPriceRange]);
 
-  // Verify auth on component mount
-  useEffect(() => {
-    const verifyAuth = async () => {
-      try {
-        if (!initialized) {
-          initialize();
-        }
-        await checkAuth();
-      } catch (error) {
-        console.error("Auth verification error:", error);
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-
-    verifyAuth();
-  }, [checkAuth, initialize, initialized]);
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -142,8 +120,8 @@ export default function GuestCottages() {
     setSelectedPriceRange("");
   };
 
-  // Show loading while checking auth or availability
-  if (checkingAuth || !initialized || checkingAvailability) {
+  // Show loading while checking availability
+  if (checkingAvailability) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center py-12">
@@ -203,21 +181,6 @@ export default function GuestCottages() {
           Experience the perfect blend of comfort and nature in our charming
           traditional Filipino-style cottages.
         </p>
-        {!isAuthenticated && (
-          <div className="mt-4 p-4 bg-green-50 rounded-lg inline-block">
-            <p className="text-sm text-green-800">
-              🔐{" "}
-              <Link to="/login" className="font-semibold underline">
-                Login
-              </Link>{" "}
-              or{" "}
-              <Link to="/register" className="font-semibold underline">
-                Register
-              </Link>{" "}
-              to make a reservation
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Search and Filters */}
@@ -383,27 +346,6 @@ export default function GuestCottages() {
                       </div>
                     </div>
 
-                    {/* Login/Register Prompt */}
-                    {!isAuthenticated && (
-                      <div className="mt-3 pt-3 border-t border-gray-100 text-center">
-                        <p className="text-xs text-gray-500">
-                          <Link
-                            to="/login"
-                            className="text-green-600 hover:underline"
-                          >
-                            Login
-                          </Link>{" "}
-                          or{" "}
-                          <Link
-                            to="/register"
-                            className="text-green-600 hover:underline"
-                          >
-                            Register
-                          </Link>{" "}
-                          to make a reservation
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

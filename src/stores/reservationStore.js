@@ -29,6 +29,16 @@ export const useReservationStore = create((set, get) => ({
   guestReservations: [],
   guestReservationsLoading: false,
 
+  // Look up a booking by reservation number + email, no login (see WT-08).
+  trackBooking: async (reservationNumber, email) => {
+    const url = new URL(`${API}/reservations/track`);
+    url.searchParams.set("reservationNumber", reservationNumber);
+    url.searchParams.set("email", email);
+    const res = await fetch(url.toString());
+    const data = await safeJson(res);
+    return data.reservation;
+  },
+
   // ==================== ADMIN RESERVATIONS ====================
 
   fetchReservations: async () => {

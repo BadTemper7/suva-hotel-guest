@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiChevronLeft,
@@ -26,7 +26,6 @@ import Loader from "../components/ui/Loader.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
 import { useAddOnStore } from "../stores/addOnStore.js";
 import { usePaymentStore } from "../stores/paymentStore.js";
-import { useGuestStore } from "../stores/guestStore.js";
 import NumberInput from "../components/ui/NumberInput.jsx";
 import Stepper from "../components/ui/NumberInput.jsx";
 import ImagePreviewModal from "../components/modal/ImagePreviewModal.jsx";
@@ -188,8 +187,6 @@ function SummaryCard({ title, children, className = "" }) {
 
 export default function GuestReservation() {
   const navigate = useNavigate();
-  const loc = useLocation();
-  const { currentGuest, isAuthenticated, initialize } = useGuestStore();
   const [step, setStep] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [fitCapacityOnly, setFitCapacityOnly] = useState(false);
@@ -205,6 +202,14 @@ export default function GuestReservation() {
     adults: 1,
     children: 0,
     notes: "",
+  });
+
+  // Guest identity — collected directly since there's no login (see WT-08).
+  const [guestInfo, setGuestInfo] = useState({
+    firstName: "",
+    lastName: "",
+    contactNumber: "",
+    email: "",
   });
 
   // Step 2 data
@@ -250,20 +255,7 @@ export default function GuestReservation() {
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Initialize and check authentication
   useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !currentGuest) {
-      toast.error("Please login to make a reservation");
-      navigate("/login", {
-        state: { from: `${loc.pathname}${loc.search}` },
-      });
-      return;
-    }
-
     const loadData = async () => {
       try {
         await Promise.all([
@@ -278,17 +270,7 @@ export default function GuestReservation() {
       }
     };
     loadData();
-  }, [
-    fetchAddOns,
-    fetchPaymentOptions,
-    fetchPaymentTypes,
-    fetchDiscounts,
-    isAuthenticated,
-    currentGuest,
-    navigate,
-    loc.pathname,
-    loc.search,
-  ]);
+  }, [fetchAddOns, fetchPaymentOptions, fetchPaymentTypes, fetchDiscounts]);
 
   // Update check-out when check-in changes
   useEffect(() => {
@@ -641,6 +623,19 @@ export default function GuestReservation() {
       errors.adults = "Adults must be at least 1.";
     if (reservationFormData.children < 0)
       errors.children = "Children cannot be negative.";
+
+    if (!guestInfo.firstName.trim())
+      errors.guestFirstName = "First name is required.";
+    if (!guestInfo.lastName.trim())
+      errors.guestLastName = "Last name is required.";
+    if (!guestInfo.contactNumber.trim())
+      errors.guestContactNumber = "Contact number is required.";
+    if (!guestInfo.email.trim()) {
+      errors.guestEmail = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email.trim())) {
+      errors.guestEmail = "Enter a valid email address.";
+    }
+
     setErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast.error("Please fix the highlighted fields.");
@@ -997,10 +992,10 @@ export default function GuestReservation() {
     try {
       const payload = {
         guest: {
-          firstName: currentGuest.firstName,
-          lastName: currentGuest.lastName,
-          contactNumber: currentGuest.contactNumber,
-          email: currentGuest.email,
+          firstName: guestInfo.firstName,
+          lastName: guestInfo.lastName,
+          contactNumber: guestInfo.contactNumber,
+          email: guestInfo.email,
         },
         reservationData: {
           checkIn: reservationFormData.checkIn,
@@ -1032,12 +1027,16 @@ export default function GuestReservation() {
           referenceNumber: referenceNumber || null,
           isAdminInitiated: false,
         },
-        guestId: currentGuest._id,
       };
 
-      await createFullReservation(payload);
+      const created = await createFullReservation(payload);
       toast.success("Reservation created successfully!");
-      navigate(`/bookings`);
+      navigate("/track-booking", {
+        state: {
+          reservationNumber: created?.reservationNumber,
+          email: guestInfo.email,
+        },
+      });
     } catch (err) {
       console.error("Reservation creation error:", err);
       toast.error(
@@ -1318,6 +1317,89 @@ export default function GuestReservation() {
                       description="Ages 2-12 years"
                       error={errors.children}
                     />
+                  </div>
+                </div>
+
+                {/* Guest information — no account needed; this is how we'll
+                    identify your booking for the tracker later. */}
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                    Your Information
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    We'll use your email and this booking's reservation
+                    number to let you look up your booking later — no
+                    account needed.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={guestInfo.firstName}
+                        onChange={(e) =>
+                          setGuestInfo({
+                            ...guestInfo,
+                            firstName: e.target.value,
+                          })
+                        }
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.guestFirstName ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <FieldError text={errors.guestFirstName} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={guestInfo.lastName}
+                        onChange={(e) =>
+                          setGuestInfo({
+                            ...guestInfo,
+                            lastName: e.target.value,
+                          })
+                        }
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.guestLastName ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <FieldError text={errors.guestLastName} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Contact Number *
+                      </label>
+                      <input
+                        type="tel"
+                        value={guestInfo.contactNumber}
+                        onChange={(e) =>
+                          setGuestInfo({
+                            ...guestInfo,
+                            contactNumber: e.target.value,
+                          })
+                        }
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.guestContactNumber ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <FieldError text={errors.guestContactNumber} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        value={guestInfo.email}
+                        onChange={(e) =>
+                          setGuestInfo({
+                            ...guestInfo,
+                            email: e.target.value,
+                          })
+                        }
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.guestEmail ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                      <FieldError text={errors.guestEmail} />
+                    </div>
                   </div>
                 </div>
 
@@ -2499,18 +2581,18 @@ export default function GuestReservation() {
             </SummaryCard>
 
             {/* Guest Info Card */}
-            {currentGuest && (
+            {guestInfo.firstName && (
               <SummaryCard title="Guest Information">
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <FiUser className="text-gray-400" size={14} />
                     <span className="font-medium text-gray-900">
-                      {currentGuest.firstName} {currentGuest.lastName}
+                      {guestInfo.firstName} {guestInfo.lastName}
                     </span>
                   </div>
-                  <div className="text-gray-600">{currentGuest.email}</div>
+                  <div className="text-gray-600">{guestInfo.email}</div>
                   <div className="text-gray-600">
-                    {currentGuest.contactNumber}
+                    {guestInfo.contactNumber}
                   </div>
                 </div>
               </SummaryCard>

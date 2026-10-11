@@ -1,6 +1,5 @@
 // src/app/routes.jsx
 import React, { lazy, Suspense } from "react";
-import ProtectedRoute from "./ProtectedRoute.jsx";
 import GuestLayout from "../components/layout/GuestLayout.jsx";
 import Loader from "../components/ui/Loader.jsx";
 import NotFound from "../pages/NotFound.jsx";
@@ -21,19 +20,11 @@ const BookingPolicySummary = lazy(
 const GuestFAQ = lazy(() => import("../pages/FAQ.jsx"));
 // const GuestGallery = lazy(() => import("../pages/Gallery.jsx"));
 
-// Guest Pages - No Layout (auth pages without GuestLayout)
-const GuestLogin = lazy(() => import("../pages/Login.jsx"));
-const VerifyEmail = lazy(() => import("../pages/VerifyEmail.jsx"));
-const GuestRegister = lazy(() => import("../pages/Register.jsx"));
-const GuestForgotPassword = lazy(() => import("../pages/ForgotPassword.jsx"));
-const GuestResetPassword = lazy(() => import("../pages/ResetPassword.jsx"));
-
-// Guest Pages - Protected (require authentication)
-const GuestProfile = lazy(() => import("../pages/Profile.jsx"));
-const GuestBookings = lazy(() => import("../pages/Bookings.jsx"));
+// Booking — no login required (see WT-08)
 const GuestBookingProcess = lazy(
   () => import("../pages/ReservationProcess.jsx"),
 );
+const TrackBooking = lazy(() => import("../pages/TrackBooking.jsx"));
 
 const withLoader = (Component, label) => (
   <Suspense
@@ -49,7 +40,8 @@ const withLoader = (Component, label) => (
 
 export default [
   // ==================== PUBLIC ROUTES WITH GUEST LAYOUT ====================
-  // These routes use GuestLayout (header + footer)
+  // These routes use GuestLayout (header + footer). There is no login left
+  // in this app — everything here is public.
   {
     element: <GuestLayout />,
     children: [
@@ -85,49 +77,16 @@ export default [
         ),
       },
       { path: "/faq", element: withLoader(GuestFAQ, "Loading FAQ...") },
-    ],
-  },
-
-  { path: "/login", element: withLoader(GuestLogin, "Loading login...") },
-  {
-    path: "/register",
-    element: withLoader(GuestRegister, "Loading register..."),
-  },
-  {
-    path: "/verify-email",
-    element: <VerifyEmail />,
-  },
-  {
-    path: "/forgot-password",
-    element: withLoader(GuestForgotPassword, "Loading..."),
-  },
-  {
-    path: "/reset-password",
-    element: withLoader(GuestResetPassword, "Loading..."),
-  },
-
-  {
-    element: <ProtectedRoute />,
-    children: [
       {
-        element: <GuestLayout />,
-        children: [
-          {
-            path: "/profile",
-            element: withLoader(GuestProfile, "Loading profile..."),
-          },
-          {
-            path: "/bookings",
-            element: withLoader(GuestBookings, "Loading bookings..."),
-          },
-          {
-            path: "/booking-process",
-            element: withLoader(
-              GuestBookingProcess,
-              "Loading booking process...",
-            ),
-          },
-        ],
+        path: "/booking-process",
+        element: withLoader(
+          GuestBookingProcess,
+          "Loading booking process...",
+        ),
+      },
+      {
+        path: "/track-booking",
+        element: withLoader(TrackBooking, "Loading your booking..."),
       },
     ],
   },
