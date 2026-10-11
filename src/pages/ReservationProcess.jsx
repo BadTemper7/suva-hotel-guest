@@ -1842,6 +1842,19 @@ export default function GuestReservation() {
                         ))}
                     </select>
                     <FieldError text={errors.paymentType} />
+
+                    {selectedPaymentType?.qrCodeUrl && (
+                      <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3 flex flex-col items-center text-center">
+                        <p className="text-xs text-gray-600 mb-2">
+                          Scan to pay via {selectedPaymentType.name}
+                        </p>
+                        <img
+                          src={selectedPaymentType.qrCodeUrl}
+                          alt={`${selectedPaymentType.name} QR code`}
+                          className="h-40 w-40 rounded-lg object-cover border border-gray-200 bg-white"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
