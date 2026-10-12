@@ -292,26 +292,27 @@ export const useReservationStore = create((set, get) => ({
       }
 
       // Step 1: Get guest ID
+      // Previously this fell back to a hardcoded dummy guest ObjectId on any
+      // failure here, which let a reservation get created against a guest
+      // that doesn't exist — "populate" on a dangling reference silently
+      // returns null, so Track Booking's email check could never match.
+      // Fail loudly instead: no guest resolved means no reservation created.
       let finalGuestId = guestId;
 
-      if (!finalGuestId && guest.email && guest.email.trim()) {
-        try {
-          const resGuest = await fetch(
-            `${API}/guests/find-or-create-by-email`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(guest),
-            },
-          );
-          const guestResponse = await safeJson(resGuest);
-          finalGuestId = guestResponse.guest?._id || guestResponse._id;
-        } catch (guestErr) {
-          console.warn("Could not find/create guest:", guestErr.message);
-          finalGuestId = "6968b7aad9522d8eac7cafb3";
+      if (!finalGuestId) {
+        if (!guest?.email || !guest.email.trim()) {
+          throw new Error("Guest email is required to create a reservation.");
         }
-      } else if (!finalGuestId) {
-        finalGuestId = "6968b7aad9522d8eac7cafb3";
+        const resGuest = await fetch(`${API}/guests/find-or-create-by-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(guest),
+        });
+        const guestResponse = await safeJson(resGuest);
+        finalGuestId = guestResponse.guest?._id || guestResponse._id;
+        if (!finalGuestId) {
+          throw new Error("Could not resolve a guest for this reservation.");
+        }
       }
 
       // Step 2: Create reservation
