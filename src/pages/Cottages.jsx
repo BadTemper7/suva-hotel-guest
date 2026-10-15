@@ -352,6 +352,22 @@ export default function GuestCottages() {
                       <span>💰</span>
                       <span>{formatPrice(cottage.rate)}/night</span>
                     </div>
+                    {(cottage.hourlyRates?.hours3 > 0 ||
+                      cottage.hourlyRates?.hours6 > 0 ||
+                      cottage.hourlyRates?.hours12 > 0) && (
+                      <div className="flex items-center gap-1 w-full text-xs text-gray-500">
+                        Hourly:{" "}
+                        {[3, 6, 12]
+                          .filter(
+                            (h) => Number(cottage.hourlyRates?.[`hours${h}`]) > 0,
+                          )
+                          .map(
+                            (h) =>
+                              `${h}h ${formatPrice(cottage.hourlyRates[`hours${h}`])}`,
+                          )
+                          .join(" · ")}
+                      </div>
+                    )}
                   </div>
 
                   {/* Price Display Only - No Book Now Button */}

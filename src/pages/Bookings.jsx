@@ -18,11 +18,15 @@ import {
   FiImage,
   FiExternalLink,
   FiPlus,
+  FiPrinter,
 } from "react-icons/fi";
 import { useReservationStore } from "../stores/reservationStore";
 import { useGuestStore } from "../stores/guestStore";
 import Loader from "../components/ui/Loader";
 import GuestDiscountIdModal from "../components/modals/GuestDiscountIdModal.jsx";
+import InvoicePreviewModal from "../components/modals/InvoicePreviewModal.jsx";
+import StayTimer from "../components/StayTimer.jsx";
+import StayTypePill from "../components/StayTypePill.jsx";
 import toast from "react-hot-toast";
 const PesoIcon = ({ className = "w-5 h-5", ...props }) => (
   <span
@@ -110,7 +114,7 @@ function PaymentStatusBadge({ paymentStatus }) {
 }
 
 // Room Card Component with Amenities
-function RoomCard({ room }) {
+function RoomCard({ room, stayType, hourlyDuration }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!room) return null;
@@ -124,14 +128,18 @@ function RoomCard({ room }) {
           </h4>
           <p className="text-xs text-gray-500 mt-0.5">
             Capacity: {room.capacity} guests • Rate: {formatMoney(room.rate)}
-            /night
+            {stayType === "hourly" ? "" : "/night"}
           </p>
         </div>
         <div className="text-right">
           <p className="text-sm font-semibold text-gray-900">
             {formatMoney(room.total)}
           </p>
-          <p className="text-xs text-gray-500">{room.nights} nights</p>
+          <p className="text-xs text-gray-500">
+            {stayType === "hourly"
+              ? `${hourlyDuration || room.hourlyDuration || ""} hrs`
+              : `${room.nights} nights`}
+          </p>
         </div>
       </div>
 
@@ -197,7 +205,7 @@ function RoomCard({ room }) {
 }
 
 // Receipt Card Component
-function ReceiptCard({ receipt }) {
+function ReceiptCard({ receipt, reservation }) {
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   if (!receipt) return null;
@@ -209,7 +217,10 @@ function ReceiptCard({ receipt }) {
           <p className="text-sm font-semibold text-gray-900">
             {receipt.paymentType?.name || "Payment"}
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <div className="mt-1">
+            <StayTypePill reservation={reservation || receipt} />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
             {new Date(receipt.createdAt).toLocaleDateString("en-PH", {
               year: "numeric",
               month: "short",
@@ -327,6 +338,7 @@ export default function Bookings() {
   const [expandedReservation, setExpandedReservation] = useState(null);
   const [allReservations, setAllReservations] = useState([]);
   const [discountIdModalProof, setDiscountIdModalProof] = useState(null);
+  const [invoiceBilling, setInvoiceBilling] = useState(null);
 
   useEffect(() => {
     initialize();
@@ -616,6 +628,7 @@ export default function Bookings() {
                       <h2 className="text-xl font-bold text-gray-900">
                         {booking.reservation.reservationNumber}
                       </h2>
+                      <StayTypePill reservation={booking.reservation} />
                       <StatusBadge status={booking.reservation.status} />
                       <PaymentStatusBadge
                         paymentStatus={booking.paymentSummary?.paymentStatus}
@@ -651,6 +664,15 @@ export default function Bookings() {
                         {booking.rooms?.length === 1 ? "Room" : "Rooms"}
                       </span>
                     </div>
+                    {booking.reservation.status === "checked_in" && (
+                      <div className="mt-4 max-w-sm">
+                        <StayTimer
+                          checkInAt={booking.reservation.actualCheckInAt}
+                          checkOutAt={booking.reservation.checkOut}
+                          active
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -702,7 +724,18 @@ export default function Bookings() {
                           </h3>
                           <div className="space-y-3">
                             {booking.rooms.map((room, idx) => (
-                              <RoomCard key={idx} room={room} />
+                              <RoomCard
+                                key={idx}
+                                room={room}
+                                stayType={
+                                  booking.reservation.stayType ||
+                                  room.stayType
+                                }
+                                hourlyDuration={
+                                  booking.reservation.hourlyDuration ||
+                                  room.hourlyDuration
+                                }
+                              />
                             ))}
                           </div>
                           <div className="mt-4 p-4 bg-gray-50 rounded-xl flex justify-between items-center">
@@ -828,16 +861,41 @@ export default function Bookings() {
                       )}
 
                       {/* Receipts Section */}
-                      {booking.receipts && booking.receipts.length > 0 && (
+                      {(booking.billing?._id ||
+                        (booking.receipts && booking.receipts.length > 0)) && (
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <FiFileText /> Payment Receipts
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {booking.receipts.map((receipt, idx) => (
-                              <ReceiptCard key={idx} receipt={receipt} />
-                            ))}
+                          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                              <FiFileText /> Payment Receipts
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInvoiceBilling(booking.billing)
+                              }
+                              disabled={!booking.billing?._id}
+                              className="px-4 py-2 text-sm font-medium text-[#0c2bfc] border border-[#0c2bfc]/20 rounded-lg hover:bg-[#0c2bfc]/5 transition inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <FiPrinter size={14} />
+                              View Invoice
+                            </button>
                           </div>
+                          {booking.receipts && booking.receipts.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {booking.receipts.map((receipt, idx) => (
+                                <ReceiptCard
+                                  key={idx}
+                                  receipt={receipt}
+                                  reservation={booking.reservation}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              No payment receipts yet. You can still view or
+                              download your invoice.
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -964,6 +1022,11 @@ export default function Bookings() {
         open={!!discountIdModalProof}
         proof={discountIdModalProof}
         onClose={() => setDiscountIdModalProof(null)}
+      />
+      <InvoicePreviewModal
+        open={!!invoiceBilling}
+        billing={invoiceBilling}
+        onClose={() => setInvoiceBilling(null)}
       />
     </div>
   );

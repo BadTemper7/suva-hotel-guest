@@ -30,6 +30,13 @@ import { useGuestStore } from "../stores/guestStore.js";
 import NumberInput from "../components/ui/NumberInput.jsx";
 import Stepper from "../components/ui/NumberInput.jsx";
 import ImagePreviewModal from "../components/modal/ImagePreviewModal.jsx";
+import {
+  HOURLY_DURATIONS,
+  getHourlyRate,
+  getRoomStayCharge,
+  roomOffersHourlyPackage,
+  stayRateLabel,
+} from "../utils/stay.js";
 
 // Utility functions
 const formatMoney = (n) =>
@@ -89,6 +96,13 @@ const nightsBetween = (checkIn, checkOut) => {
   const diff = b - a;
   const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
   return Math.max(1, nights);
+};
+
+const computeHourlyCheckOut = (checkInDate, hours) => {
+  if (!checkInDate || !hours) return "";
+  const d = new Date(checkInDate);
+  d.setHours(d.getHours() + Number(hours));
+  return toISODateTime(d);
 };
 
 const validatePhone = (v) => /^09\d{9}$/.test(String(v || ""));
@@ -202,6 +216,8 @@ export default function GuestReservation() {
   const [reservationFormData, setReservationFormData] = useState({
     checkIn: getDefaultCheckIn(),
     checkOut: getDefaultCheckOut(),
+    stayType: "overnight",
+    hourlyDuration: 3,
     adults: 1,
     children: 0,
     notes: "",
@@ -292,16 +308,29 @@ export default function GuestReservation() {
 
   // Update check-out when check-in changes
   useEffect(() => {
-    if (reservationFormData.checkIn) {
-      const checkIn = new Date(reservationFormData.checkIn);
-      const checkOut = new Date(checkIn);
-      checkOut.setDate(checkOut.getDate() + 1);
+    if (!reservationFormData.checkIn) return;
+    if (reservationFormData.stayType === "hourly") {
       setReservationFormData((prev) => ({
         ...prev,
-        checkOut: toISODateTime(setTimeTo(checkOut, 12, 0)),
+        checkOut: computeHourlyCheckOut(
+          prev.checkIn,
+          prev.hourlyDuration || 3,
+        ),
       }));
+      return;
     }
-  }, [reservationFormData.checkIn]);
+    const checkIn = new Date(reservationFormData.checkIn);
+    const checkOut = new Date(checkIn);
+    checkOut.setDate(checkOut.getDate() + 1);
+    setReservationFormData((prev) => ({
+      ...prev,
+      checkOut: toISODateTime(setTimeTo(checkOut, 12, 0)),
+    }));
+  }, [
+    reservationFormData.checkIn,
+    reservationFormData.stayType,
+    reservationFormData.hourlyDuration,
+  ]);
   const filteredAvailableItems = useMemo(() => {
     const requiredGuests =
       Number(reservationFormData.adults || 0) +
@@ -311,6 +340,12 @@ export default function GuestReservation() {
       const matchesCategory =
         categoryFilter === "all" ? true : item.category === categoryFilter;
       if (!matchesCategory) return false;
+      if (
+        reservationFormData.stayType === "hourly" &&
+        !roomOffersHourlyPackage(item, reservationFormData.hourlyDuration)
+      ) {
+        return false;
+      }
       if (!fitCapacityOnly) return true;
       return Number(item?.capacity || 0) >= requiredGuests;
     });
@@ -320,6 +355,8 @@ export default function GuestReservation() {
     fitCapacityOnly,
     reservationFormData.adults,
     reservationFormData.children,
+    reservationFormData.stayType,
+    reservationFormData.hourlyDuration,
   ]);
 
   const roomCount = availableRooms.filter(
@@ -340,8 +377,15 @@ export default function GuestReservation() {
   const roomTotals = useMemo(() => {
     return roomReservations.map((roomRes) => {
       const room = availableRooms.find((r) => r._id === roomRes.roomId);
-      const roomRate = room?.rate || 0;
-      const roomSubtotal = roomRate * nights;
+      const roomRate =
+        reservationFormData.stayType === "hourly"
+          ? getHourlyRate(room, reservationFormData.hourlyDuration)
+          : room?.rate || 0;
+      const roomSubtotal = getRoomStayCharge(room, {
+        stayType: reservationFormData.stayType,
+        hourlyDuration: reservationFormData.hourlyDuration,
+        nights,
+      });
       const isCottage = room?.category === "cottage";
 
       // Only calculate add-ons for rooms (not cottages)
@@ -363,7 +407,7 @@ export default function GuestReservation() {
         isCottage,
       };
     });
-  }, [roomReservations, availableRooms, nights, addOns]);
+  }, [roomReservations, availableRooms, nights, addOns, reservationFormData.stayType, reservationFormData.hourlyDuration]);
 
   const totalAmount = useMemo(() => {
     return roomTotals.reduce((sum, room) => sum + room.total, 0);
@@ -633,9 +677,16 @@ export default function GuestReservation() {
     if (
       reservationFormData.checkIn &&
       reservationFormData.checkOut &&
-      nights <= 0
+      new Date(reservationFormData.checkOut) <=
+        new Date(reservationFormData.checkIn)
     ) {
       errors.checkOut = "Check-out must be after check-in.";
+    }
+    if (
+      reservationFormData.stayType === "hourly" &&
+      ![3, 6, 12].includes(Number(reservationFormData.hourlyDuration))
+    ) {
+      errors.hourlyDuration = "Select 3, 6, or 12 hours.";
     }
     if (reservationFormData.adults < 1)
       errors.adults = "Adults must be at least 1.";
@@ -866,6 +917,8 @@ export default function GuestReservation() {
     setReservationFormData({
       checkIn: getDefaultCheckIn(),
       checkOut: getDefaultCheckOut(),
+      stayType: "overnight",
+      hourlyDuration: 3,
       adults: 1,
       children: 0,
       notes: "",
@@ -1005,6 +1058,8 @@ export default function GuestReservation() {
         reservationData: {
           checkIn: reservationFormData.checkIn,
           checkOut: reservationFormData.checkOut,
+          stayType: reservationFormData.stayType,
+          hourlyDuration: reservationFormData.hourlyDuration,
           adults: reservationFormData.adults,
           children: reservationFormData.children,
           seniorCitizenCount: payment.seniorCitizenCount || 0,
@@ -1147,20 +1202,128 @@ export default function GuestReservation() {
             {step === 1 && (
               <Section
                 title="Step 1: Dates and Guests"
-                subtitle="Select your stay dates and number of guests."
+                subtitle="Choose overnight or an hourly package, then guest counts."
                 icon={<FiCalendar />}
                 right={
-                  nights > 0 && (
+                  reservationFormData.stayType === "hourly" ? (
                     <div className="text-sm text-gray-600">
-                      Nights:{" "}
+                      Duration:{" "}
                       <span className="font-semibold text-gray-900">
-                        {nights}
+                        {reservationFormData.hourlyDuration} hrs
                       </span>
                     </div>
+                  ) : (
+                    nights > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Nights:{" "}
+                        <span className="font-semibold text-gray-900">
+                          {nights}
+                        </span>
+                      </div>
+                    )
                   )
                 }
               >
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Stay type *
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: "overnight", label: "Overnight" },
+                      { value: "hourly", label: "Hourly (3 / 6 / 12 hrs)" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setReservationFormData((prev) => ({
+                            ...prev,
+                            stayType: opt.value,
+                          }))
+                        }
+                        className={`h-10 px-4 rounded-xl text-sm font-medium border transition-all ${
+                          reservationFormData.stayType === opt.value
+                            ? "bg-[#0c2bfc] text-white border-[#0c2bfc]"
+                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {reservationFormData.stayType === "hourly" && (
+                  <div className="mb-4">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Package *
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {HOURLY_DURATIONS.map((hrs) => (
+                        <button
+                          key={hrs}
+                          type="button"
+                          onClick={() =>
+                            setReservationFormData((prev) => ({
+                              ...prev,
+                              hourlyDuration: hrs,
+                            }))
+                          }
+                          className={`h-10 px-4 rounded-xl text-sm font-medium border ${
+                            Number(reservationFormData.hourlyDuration) === hrs
+                              ? "bg-[#0c2bfc] text-white border-[#0c2bfc]"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {hrs} hours
+                        </button>
+                      ))}
+                    </div>
+                    <FieldError text={errors.hourlyDuration} />
+                  </div>
+                )}
+
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {reservationFormData.stayType === "hourly" ? (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          Start date & time *
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={reservationFormData.checkIn}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (!value) return;
+                            setReservationFormData({
+                              ...reservationFormData,
+                              checkIn: value,
+                            });
+                          }}
+                          className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                        />
+                        <FieldError text={errors.checkIn} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          End time (computed)
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={reservationFormData.checkOut}
+                          readOnly
+                          className="mt-1 w-full h-11 rounded-lg border px-4 text-sm bg-gray-50 text-gray-700 border-gray-200"
+                        />
+                        <div className="mt-2 text-xs text-gray-500">
+                          Checkout is start time plus{" "}
+                          {reservationFormData.hourlyDuration} hours.
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
                   {/* Check In Date - Fixed time 2:00 PM */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
@@ -1279,6 +1442,8 @@ export default function GuestReservation() {
                     </div>
                     <FieldError text={errors.checkOut} />
                   </div>
+                    </>
+                  )}
 
                   {/* Adults */}
                   <div>
@@ -1371,7 +1536,12 @@ export default function GuestReservation() {
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
-                      Nights: <b className="text-gray-900">{nights}</b>
+                      Stay:{" "}
+                      <b className="text-gray-900">
+                        {reservationFormData.stayType === "hourly"
+                          ? `${reservationFormData.hourlyDuration} hrs`
+                          : `${nights} night(s)`}
+                      </b>
                     </span>
                   </div>
                 }
@@ -1527,7 +1697,19 @@ export default function GuestReservation() {
                                     </div>
                                     <div className="text-xs text-gray-600 mt-2">
                                       Capacity: {item.capacity} • Rate:{" "}
-                                      {formatMoney(item.rate)} / night
+                                      {formatMoney(
+                                        reservationFormData.stayType ===
+                                          "hourly"
+                                          ? getHourlyRate(
+                                              item,
+                                              reservationFormData.hourlyDuration,
+                                            )
+                                          : item.rate,
+                                      )}{" "}
+                                      {stayRateLabel(
+                                        reservationFormData.stayType,
+                                        reservationFormData.hourlyDuration,
+                                      )}
                                     </div>
 
                                     {/* Image Gallery Button */}
@@ -2296,9 +2478,15 @@ export default function GuestReservation() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Nights</span>
+                    <span className="text-gray-500">
+                      {reservationFormData.stayType === "hourly"
+                        ? "Duration"
+                        : "Nights"}
+                    </span>
                     <span className="font-medium text-gray-900">
-                      {nights || 0}
+                      {reservationFormData.stayType === "hourly"
+                        ? `${reservationFormData.hourlyDuration} hrs`
+                        : nights || 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -2337,7 +2525,10 @@ export default function GuestReservation() {
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-500">
-                            {nights} × {formatMoney(roomTotal.roomRate)}
+                            {reservationFormData.stayType === "hourly"
+                              ? `${reservationFormData.hourlyDuration} hrs`
+                              : `${nights} ×`}{" "}
+                            {formatMoney(roomTotal.roomRate)}
                           </span>
                           <span>{formatMoney(roomTotal.roomSubtotal)}</span>
                         </div>

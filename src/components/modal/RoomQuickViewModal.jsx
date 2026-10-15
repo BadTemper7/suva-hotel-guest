@@ -145,6 +145,22 @@ export default function RoomQuickViewModal({ open, item, onClose }) {
                             {formatPrice(item.rate)}
                           </div>
                           <div className="text-xs text-gray-500">/ night</div>
+                          {(item.hourlyRates?.hours3 > 0 ||
+                            item.hourlyRates?.hours6 > 0 ||
+                            item.hourlyRates?.hours12 > 0) && (
+                            <div className="text-[10px] text-gray-400 mt-1 max-w-[8rem]">
+                              {[3, 6, 12]
+                                .filter(
+                                  (h) =>
+                                    Number(item.hourlyRates?.[`hours${h}`]) > 0,
+                                )
+                                .map(
+                                  (h) =>
+                                    `${h}h ${formatPrice(item.hourlyRates[`hours${h}`])}`,
+                                )
+                                .join(" · ")}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
