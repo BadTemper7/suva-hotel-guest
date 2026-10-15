@@ -2,7 +2,11 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import { FiPrinter } from "react-icons/fi";
 import { useReservationStore } from "../stores/reservationStore.js";
+import InvoicePreviewModal from "../components/modals/InvoicePreviewModal.jsx";
+import StayTimer from "../components/StayTimer.jsx";
+import StayTypePill from "../components/StayTypePill.jsx";
 
 const STATUS_LABELS = {
   pending: "Pending",
@@ -44,6 +48,7 @@ export default function TrackBooking() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [invoiceBilling, setInvoiceBilling] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -136,10 +141,23 @@ export default function TrackBooking() {
                 #{result.reservationNumber}
               </div>
             </div>
-            <span className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium bg-blue-50 text-blue-700">
-              {STATUS_LABELS[result.status] || result.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <StayTypePill reservation={result} />
+              <span className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium bg-blue-50 text-blue-700">
+                {STATUS_LABELS[result.status] || result.status}
+              </span>
+            </div>
           </div>
+
+          {result.status === "checked_in" && (
+            <div className="max-w-sm">
+              <StayTimer
+                checkInAt={result.actualCheckInAt}
+                checkOutAt={result.checkOut}
+                active
+              />
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-gray-200 p-4">
@@ -183,6 +201,12 @@ export default function TrackBooking() {
                   >
                     {rr.roomId?.category === "cottage" ? "Cottage" : "Room"}{" "}
                     {rr.roomId?.roomNumber || "—"}
+                    {result.stayType === "hourly" && result.hourlyDuration && (
+                      <span className="text-gray-500">
+                        {" "}
+                        — {result.hourlyDuration} hrs
+                      </span>
+                    )}
                     {Array.isArray(rr.addOns) && rr.addOns.length > 0 && (
                       <span className="text-gray-500">
                         {" "}
@@ -197,9 +221,18 @@ export default function TrackBooking() {
 
           {result.billing && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                Billing
-              </h3>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-gray-900">Billing</h3>
+                <button
+                  type="button"
+                  onClick={() => setInvoiceBilling(result.billing)}
+                  disabled={!result.billing._id}
+                  className="px-3 py-1.5 text-sm font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FiPrinter size={14} />
+                  View Invoice
+                </button>
+              </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                   <div className="text-xs text-gray-500">Total</div>
@@ -224,6 +257,12 @@ export default function TrackBooking() {
           )}
         </div>
       )}
+
+      <InvoicePreviewModal
+        open={!!invoiceBilling}
+        billing={invoiceBilling}
+        onClose={() => setInvoiceBilling(null)}
+      />
     </div>
   );
 }

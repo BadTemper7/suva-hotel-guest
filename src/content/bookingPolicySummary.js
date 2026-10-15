@@ -1,4 +1,6 @@
 
+import { formatSecurityDepositCopy } from "../utils/stay.js";
+
 export const bookingPolicySummaryIntro =
   "Quick reminders for your visit and overnight stay. See the full policy pages linked on this screen for complete terms.";
 
@@ -41,3 +43,9 @@ export const roomPolicySummary = {
     "The full Resort Guest Policy also applies to all room guests.",
   ],
 };
+
+export function getRoomPolicySummary(deposits) {
+  const items = [...roomPolicySummary.items];
+  items[1] = `Valid government ID and a cash deposit at check-in: ${formatSecurityDepositCopy(deposits)}, refunded at checkout if there is no damage.`;
+  return { ...roomPolicySummary, items };
+}

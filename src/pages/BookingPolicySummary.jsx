@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { useEffect, useState } from "react";
 import {
   bookingPolicySummaryIntro,
   resortGuestSummary,
-  roomPolicySummary,
+  getRoomPolicySummary,
 } from "../content/bookingPolicySummary.js";
+import { DEFAULT_SECURITY_DEPOSITS } from "../utils/stay.js";
+
+const API =
+  import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
 
 function BulletList({ items }) {
   return (
@@ -29,6 +34,20 @@ function Section({ title, children }) {
 }
 
 export default function BookingPolicySummary() {
+  const [deposits, setDeposits] = useState(DEFAULT_SECURITY_DEPOSITS);
+
+  useEffect(() => {
+    fetch(`${API}/settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        const v = data.flatSettings?.securityDeposits;
+        if (v && typeof v === "object") setDeposits(v);
+      })
+      .catch(() => {});
+  }, []);
+
+  const roomPolicySummary = getRoomPolicySummary(deposits);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <Helmet>

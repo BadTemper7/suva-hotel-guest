@@ -1,8 +1,34 @@
 // src/pages/guest/RoomPolicy.jsx
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  DEFAULT_SECURITY_DEPOSITS,
+  formatSecurityDepositCopy,
+} from "../utils/stay.js";
+
+const API =
+  import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
+
+function formatPeso(n) {
+  return `₱${Number(n || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 export default function RoomPolicy() {
   const currentYear = new Date().getFullYear();
+  const [deposits, setDeposits] = useState(DEFAULT_SECURITY_DEPOSITS);
+
+  useEffect(() => {
+    fetch(`${API}/settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        const v = data.flatSettings?.securityDeposits;
+        if (v && typeof v === "object") setDeposits(v);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -50,14 +76,16 @@ export default function RoomPolicy() {
                 resort/rooms.
               </p>
               <ul className="space-y-2 ml-6">
-                <li className="text-gray-700">
-                  a. Cuarto & Teodora:{" "}
-                  <span className="font-semibold">₱500.00</span>
-                </li>
-                <li className="text-gray-700">
-                  b. Casa: <span className="font-semibold">₱1,000.00</span>
-                </li>
+                {Object.entries(deposits).map(([name, amt], idx) => (
+                  <li key={name} className="text-gray-700">
+                    {String.fromCharCode(97 + idx)}. {name}:{" "}
+                    <span className="font-semibold">{formatPeso(amt)}</span>
+                  </li>
+                ))}
               </ul>
+              <p className="text-sm text-gray-500 mt-2">
+                {formatSecurityDepositCopy(deposits)}
+              </p>
             </div>
 
             {/* Section 3 - Occupancy */}
